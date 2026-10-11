@@ -6,7 +6,7 @@ export type TraceStep = {
   id: string;
   task: string;
   model: string;
-  provider: "router" | "neon-gateway" | "anthropic" | "human";
+  provider: "router" | "neon-gateway" | "anthropic" | "human" | "typesafe";
   why: string;
   latencyMs?: number;
   costUsd?: number;
