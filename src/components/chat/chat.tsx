@@ -354,5 +354,9 @@ function ProsFor({ m, messages, zip }: { m: MMMessage; messages: MMMessage[]; zi
   const idx = messages.indexOf(m);
   const problem = [...messages.slice(0, idx)].reverse().find((x) => x.role === "user");
   const ask = problem ? txt(problem) : "";
-  return <ProsCard trade={inferTrade(`${ask} ${reply}`)} zip={zip} problem={ask || "See the FixIt summary."} hazard={hazard} />;
+  // Trade comes from what the user described (all their turns), not the plan text: a plan that says "switch off the water" is not electrical.
+  const said = messages.slice(0, idx).filter((x) => x.role === "user").map(txt).join(" ");
+  const fromUser = inferTrade(said);
+  const trade = fromUser !== "general" ? fromUser : inferTrade(`${said} ${reply}`);
+  return <ProsCard trade={trade} zip={zip} problem={ask || "See the FixIt summary."} hazard={hazard} />;
 }

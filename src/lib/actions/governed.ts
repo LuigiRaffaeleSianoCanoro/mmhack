@@ -50,7 +50,7 @@ export function buildOutbound(report: string, category: string, hazard = true, r
   // Export mode: the profile's landlord address is shown as the suggested recipient (nothing is sent from here).
   const to = mode === "send" ? process.env.LANDLORD_EMAIL! : EMAIL.test(renter.landlordEmail ?? "") ? renter.landlordEmail! : "your landlord";
   const from = mode === "send" ? process.env.FIXIT_FROM_EMAIL! : "you";
-  const issue = clean(report, 400);
+  const issue = clean(report, 400).replace(/[.!?;,\s]+$/, "");
   const name = clean(renter.landlordName ?? "", 80);
   const hello = name ? `Hello ${name},` : "Hello,";
   const addr = clean(renter.address ?? "", 160);
