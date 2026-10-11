@@ -9,6 +9,7 @@ import { readSession, sessionHeader } from "@/lib/jobs/session";
 import { actor } from "@/lib/jobs/workflow";
 import { IMAGE_MODEL, normalizeCategory, type IllustrationRequest } from "@/lib/illustration";
 import { issueTicket } from "@/lib/illustration-ticket";
+import { base44Configured } from "@/lib/inbox/base44";
 import { buildOutbound, canonical, execute, lookup, preview, type ExecRecord, type Outbound } from "@/lib/actions/governed";
 
 export const maxDuration = 120;
@@ -172,7 +173,14 @@ export async function POST(req: Request) {
               : r.status === "in_flight" ? "Already approved; the single send is in progress. Nothing will run twice."
               : r.status === "not_sent_export" ? `**Ready to send.** Here is your request (record ${r.idempotencyKey.slice(0, 10)}). Copy it to your landlord, or sign in to send it from your Gmail.\n\n**Subject:** ${o.subject}\n\n\`\`\`text\n${o.body}\n\`\`\``
               : `**Not sent:** ${r.detail}`);
-            if (r.status === "not_sent_export") writer.write({ type: "data-email", id: "email", data: { subject: o.subject, body: o.body } });
+            if (r.status === "not_sent_export") {
+              writer.write({ type: "data-email", id: "email", data: { subject: o.subject, body: o.body } });
+              // AWS-59: offer Base44 Landlord Inbox delivery only when it is actually configured (no dead card otherwise).
+              if (base44Configured()) {
+                const urgency = ["low", "medium", "high", "emergency"].includes(ctx?.triage.urgency ?? "") ? ctx!.triage.urgency : o.subject.startsWith("Urgent") ? "high" : "medium";
+                writer.write({ type: "data-delivery", id: "delivery", data: { id: "delivery", title: o.subject.slice(0, 120), urgency, category: ctx?.triage.category ?? "general", summary: (ctx?.summary ?? "").slice(0, 300), body: o.body } });
+              }
+            }
           };
           if (outbound && job && !claim.ok && claim.reason === "already claimed") {
             const existing = lookup(job.id, outbound);

@@ -42,7 +42,10 @@ export type FixitCtx = {
   pending: { q: string; chips: string[] }[];
 };
 
+/** Emitted after an approved landlord request is ready; enables the Base44 Landlord Inbox delivery card (only when Base44 is configured). */
+export type DeliveryReady = { id: string; title: string; urgency: string; category: string; summary: string; body?: string };
+
 export type MMMessage = UIMessage<
   never,
-  { trace: TraceStep; approval: ApprovalRequest; job: { jobId: string; jobToken?: string }; chips: { options: string[] }; ctx: FixitCtx; email: { subject: string; body?: string }; illustration: IllustrationRequest }
+  { trace: TraceStep; approval: ApprovalRequest; job: { jobId: string; jobToken?: string }; chips: { options: string[] }; ctx: FixitCtx; email: { subject: string; body?: string }; illustration: IllustrationRequest; delivery: DeliveryReady }
 >;
