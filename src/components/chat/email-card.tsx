@@ -9,7 +9,7 @@ import { sentLine } from "@/lib/humanize";
 
 type Result = { ok: boolean; to?: string; id?: string; at?: number; error?: string; duplicate?: boolean };
 const RKEY = (uid: string) => `fixit.sent.${uid}`;
-const loadSent = (uid: string): Record<string, Result> => { try { return JSON.parse(localStorage.getItem(RKEY(uid)) ?? "{}"); } catch { return {}; } };
+export const loadSent = (uid: string): Record<string, Result> => { try { return JSON.parse(localStorage.getItem(RKEY(uid)) ?? "{}"); } catch { return {}; } };
 
 /** The Gmail send result for one message, kept in sync across the card and the trace panel. */
 export function useSent(sendKey: string, uid: string) {

@@ -6,10 +6,11 @@ import { Mascot } from "@/components/fixit/mascot";
 
 export type Who = { id: string; name: string; email: string; guest: boolean };
 type Gmail = { enabled: boolean; connected: boolean };
-type Ctx = { who: Who; gmail: Gmail; refreshGmail: () => Promise<void>; signOut: () => Promise<void> };
+type Ctx = { who: Who; gmail: Gmail; refreshGmail: () => Promise<void>; signOut: () => Promise<void>; signIn: () => void };
 const AuthCtx = createContext<Ctx | null>(null);
 export const useAuth = () => useContext(AuthCtx);
 const GUEST_KEY = "fixit.guest";
+export const CARRY_KEY = "fixit.carry";
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const [who, setWho] = useState<Who | null | undefined>(undefined);
@@ -34,6 +35,11 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     setGmail({ enabled: false, connected: false });
     setWho(null);
   };
+  // AWS-68: guest -> sign-in without losing work. Remember the open chat; it is carried into the signed-in history.
+  const signIn = () => {
+    try { const cur = sessionStorage.getItem("fixit.current"); if (cur) localStorage.setItem(CARRY_KEY, cur); } catch {}
+    setWho(null);
+  };
   if (who === undefined) return <div className="h-dvh" />;
   if (who === null)
     return (
@@ -42,7 +48,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         emailSignIn={emailSignIn}
       />
     );
-  return <AuthCtx.Provider value={{ who, gmail, refreshGmail, signOut }}>{children}</AuthCtx.Provider>;
+  return <AuthCtx.Provider value={{ who, gmail, refreshGmail, signOut, signIn }}>{children}</AuthCtx.Provider>;
 }
 
 function Login({ onGuest, emailSignIn }: { onGuest: () => void; emailSignIn: boolean }) {

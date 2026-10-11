@@ -42,12 +42,21 @@ export type FixitCtx = {
   observed: string;
   triage: { category: string; urgency: string; hazard: boolean; summary: string };
   pending: { q: string; chips: string[] }[];
+  /** AWS-66: sticky hazard flag for the case; never downgraded once set. */
+  hazard?: boolean;
+  approval?: "pending" | "approved";
+  delivery?: "draft" | "sent" | "failed" | "unknown";
+  draft?: { subject: string; body: string; to?: string };
 };
+
+/** AWS-67/68: inline actions answering follow-ups (sign in, connect Gmail, copy, mailto). */
+export type CtaAction = "signin" | "gmail" | "copy" | "mailto";
+export type Cta = { actions: CtaAction[]; subject?: string; body?: string; to?: string };
 
 /** Emitted after an approved landlord request is ready; enables the Base44 Landlord Inbox delivery card (only when Base44 is configured). */
 export type DeliveryReady = { id: string; title: string; urgency: string; category: string; summary: string; body?: string };
 
 export type MMMessage = UIMessage<
-  never,
-  { trace: TraceStep; approval: ApprovalRequest; job: { jobId: string; jobToken?: string }; chips: { options: string[] }; ctx: FixitCtx; email: { subject: string; body?: string }; illustration: IllustrationRequest; delivery: DeliveryReady }
+  { approval?: boolean },
+  { trace: TraceStep; approval: ApprovalRequest; job: { jobId: string; jobToken?: string }; chips: { options: string[] }; ctx: FixitCtx; email: { subject: string; body?: string }; illustration: IllustrationRequest; delivery: DeliveryReady; cta: Cta }
 >;
