@@ -17,7 +17,8 @@ export const JEV_HAZARD_THRESHOLD = 0.7;
 /** P(hazard) below this is "no hazard". In between, Jev is unsure and gpt-5-mini decides (bench: benign washer/thermostat scored 0.30-0.42). */
 export const JEV_SAFE_THRESHOLD = 0.3;
 
-/** Jev may only raise a hazard when the report itself contains hazard evidence; otherwise gpt-5-mini decides.
+/** Not the stop list (HAZARD in route.ts is). Broader on purpose: a miss only hands the call to gpt-5-mini.
+ * Jev may only raise a hazard when the report itself contains hazard evidence; otherwise gpt-5-mini decides.
  * (Oct 11: sample photo + "This is leaking. What do I do?" got P(hazard) 0.72 with no evidence.) */
 export const HAZARD_EVIDENCE = /gas|smell|odou?r|rotten egg|sulfu?r|sulphur|hiss|spark|scorch|burn|smok|fire|flame|crackl|buzz|hot to the touch|warm|flicker|shock|wir(e|ing)|outlet|breaker|carbon monoxide|\bco\b|alarm|detector|headache|dizz|nause|soot|pour|burst|flood|inches of water|sewage|ceiling|collaps|sag|olor|humo|chispa/i;
 
