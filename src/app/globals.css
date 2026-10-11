@@ -215,3 +215,8 @@
 
 @keyframes evac-pulse { 50% { transform: scale(1.06); filter: drop-shadow(0 0 14px #ff5d5d); } }
 @media (prefers-reduced-motion: reduce) { .evac * { animation: none !important; } }
+/* More see-through chat column and composer over the brick wall; light blur + text shadow keep text AA on the dark wall. */
+.chat-legible { text-shadow: 0 1px 2px oklch(0 0 0 / 0.85), 0 0 8px oklch(0 0 0 / 0.5); }
+.chat-legible :is(input, textarea, button, img) { text-shadow: none; }
+.ribbed-glass.chat-input-glass { background-color: oklch(0.125 0.005 300 / 0.45); -webkit-backdrop-filter: blur(6px) saturate(1.1); backdrop-filter: blur(6px) saturate(1.1); }
+.chat-input-glass textarea { text-shadow: 0 1px 2px oklch(0 0 0 / 0.85); }
