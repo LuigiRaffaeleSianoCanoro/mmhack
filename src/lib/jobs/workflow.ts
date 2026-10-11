@@ -16,7 +16,7 @@ export const WORKFLOW: State[] = [
   ]),
   new State("approved", [], [new Transition("action", async (j) => (await prop(j, "claimId")) != null), new Transition("awaiting_approval", async (j) => (await prop(j, "decision")) == null)]),
   new State("rejected", [], [], true),
-  new State("action", [], [new Transition("done", async (j) => (await prop(j, "result")) != null)]),
+  new State("action", [], [new Transition("done", async (j) => (await prop(j, "result")) != null), new Transition("approved", async (j) => (await prop(j, "claimId")) == null)]),
   new State("done", [], [], true),
 ];
 

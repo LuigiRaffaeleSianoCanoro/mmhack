@@ -32,7 +32,7 @@ export function ApprovalCard({
           <CardDescription>{request.reason}</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="rounded-md bg-background/60 p-2 font-mono text-xs text-muted-foreground line-clamp-3">{request.prompt}</p>
+          <p className="rounded-md bg-background/60 p-2 font-mono text-xs text-muted-foreground whitespace-pre-wrap break-words max-h-40 overflow-y-auto">{request.prompt}</p>
           {request.storeLabel && <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Audited job · {request.storeLabel}</p>}
         </CardContent>
         <CardFooter className="gap-2">

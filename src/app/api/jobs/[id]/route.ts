@@ -6,7 +6,7 @@ import { actor } from "@/lib/jobs/workflow";
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const job = getJob((await params).id, req.headers.get("x-job-token") ?? undefined);
   const s = readSession(req);
-  if (!job || job.sessionId !== s.id) return NextResponse.json({ error: "not found" }, { status: 404 });
+  if (!job || job.sessionId !== s.key) return NextResponse.json({ error: "not found" }, { status: 404 });
   return NextResponse.json(publicJob(job));
 }
 
@@ -14,9 +14,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const job = getJob((await params).id, req.headers.get("x-job-token") ?? undefined);
   const s = readSession(req);
-  if (!job || job.sessionId !== s.id) return NextResponse.json({ error: "not found" }, { status: 404 });
+  if (!job || job.sessionId !== s.key) return NextResponse.json({ error: "not found" }, { status: 404 });
   const { draft } = ((await req.json().catch(() => ({}))) ?? {}) as { draft?: string };
   if (typeof draft !== "string" || draft.length > 5000) return NextResponse.json({ error: "bad draft" }, { status: 400 });
-  editDraft(job, actor.human(s.id), draft);
+  editDraft(job, actor.human(s.key), draft);
   return NextResponse.json(publicJob(job));
 }

@@ -163,6 +163,11 @@ export function Chat({ slug, sessionId, initialMessages, onMessages, headerLeft 
                             if (jobId) {
                               const r = await fetch(`/api/jobs/${jobId}/decide`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ decision: d, draftHash, jobToken }) }).catch(() => null);
                               const j = (await r?.json().catch(() => null)) as { job?: { jobToken?: string } } | null;
+                              if (!r?.ok) {
+                                // Server refused or unreachable: revert so the card is never stuck on a false "Approved".
+                                setDecisions((x) => { const n = { ...x }; delete n[m.id]; return n; });
+                                return;
+                              }
                               if (j?.job?.jobToken) {
                                 jobToken = j.job.jobToken;
                                 setJobTokens((x) => ({ ...x, [jobId]: j.job!.jobToken! }));

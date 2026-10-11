@@ -7,9 +7,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const body = ((await req.json().catch(() => ({}))) ?? {}) as { decision?: string; draftHash?: string; jobToken?: string };
   const job = getJob((await params).id, body.jobToken);
   const s = readSession(req);
-  if (!job || job.sessionId !== s.id) return NextResponse.json({ error: "not found" }, { status: 404 });
+  if (!job || job.sessionId !== s.key) return NextResponse.json({ error: "not found" }, { status: 404 });
   const { decision, draftHash } = body;
   if (decision !== "approved" && decision !== "rejected") return NextResponse.json({ error: "bad decision" }, { status: 400 });
-  const ok = decide(job, actor.human(s.id), s.id, decision, String(draftHash ?? ""));
+  const ok = decide(job, actor.human(s.key), s.key, decision, String(draftHash ?? ""));
   return NextResponse.json({ ok, job: publicJob(job) }, { status: ok ? 200 : 409 });
 }
