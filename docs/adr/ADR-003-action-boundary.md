@@ -1,6 +1,6 @@
 # ADR-003: Approval and governed-action boundary
 
-- Status: Accepted (2026-10-11)
+- Status: Accepted (2026-10-11) as the target boundary. Items 1-4 and 7 are requirements for any outbound-send PR; see "Current state" for what is implemented today.
 - Evidence: route.ts safety stop + `approved` flow; JUSTIFICATION.md sponsor table (Anbaric, Swytchcode, Base44)
 
 ## Two kinds of calls
@@ -13,8 +13,10 @@
 3. **Idempotency.** Each action carries an idempotency key derived from the approval id; retries never send twice.
 4. **Unknown outcomes.** A timeout or ambiguous response is recorded as `unknown`, shown to the user, and not auto-retried; a human decides.
 5. **Hazard path.** A hazard (text rules, triage, or post-vision) blocks DIY plans; the only allowed continuation is drafting a landlord request, which is never sent automatically.
-6. **Audit.** Each step records who acted (HUMAN/AGENT/CODE) for the Anbaric audit timeline.
-7. **Base44 seam (M3).** The landlord inbox is reached only server-side through the Base44 SDK, behind the same approval + governed-executor path. No Base44 keys or calls in client code.
+6. **Recipient pinning.** The recipient and channel come from server-side config, never from model output; the approval binds {recipient, channel, body} and the card shows the exact payload.
+7. **Durable state.** Approval and idempotency records must survive across serverless instances; in-memory or `/tmp` state is acceptable only as a clearly labelled demo fallback.
+8. **Audit.** Each step records who acted (HUMAN/AGENT/CODE) for the Anbaric audit timeline.
+9. **Base44 seam (M3).** The landlord inbox is reached only server-side through the Base44 SDK, behind the same approval + governed-executor path. No Base44 keys or calls in client code.
 
 ## Current state
 Today the app only drafts the landlord request after approval; nothing is sent. Items 1–4 and 7 apply as soon as any send is added.
