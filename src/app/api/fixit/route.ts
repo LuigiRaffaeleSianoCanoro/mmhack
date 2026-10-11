@@ -30,7 +30,8 @@ const MINI = { "neon-gateway": { reasoningEffort: "minimal" } };
 const json = <T,>(t: string): T => JSON.parse(t.slice(t.indexOf("{"), t.lastIndexOf("}") + 1));
 
 // AWS-61: a short assistant reply instead of an opaque HTTP error, so the chat stays usable.
-function refuse(message: string, status: number, extra?: Record<string, string>) {
+// Status stays 200 because useChat throws away the body of non-2xx responses; the reason is in x-fixit-limit.
+function refuse(message: string, reason: string, extra?: Record<string, string>) {
   const stream = createUIMessageStream<MMMessage>({
     execute: ({ writer }) => {
       writer.write({ type: "start" });
@@ -40,11 +41,11 @@ function refuse(message: string, status: number, extra?: Record<string, string>)
       writer.write({ type: "finish" });
     },
   });
-  return createUIMessageStreamResponse({ stream, status, headers: extra });
+  return createUIMessageStreamResponse({ stream, headers: { "x-fixit-limit": reason, ...extra } });
 }
 
 export async function POST(req: Request) {
-  if (requestTooLarge(req)) return refuse("That upload is too large. Please send a smaller photo (under 4 MB).", 413);
+  if (requestTooLarge(req)) return refuse("That upload is too large. Please send a smaller photo (under 4 MB).", "body-too-large");
   const { messages, approved, jobId, draftHash, jobToken, profile: rawProfile, client: rawClient }: { messages: MMMessage[]; approved?: boolean; jobId?: string; draftHash?: string; jobToken?: string; profile?: Record<string, string>; client?: { guest?: boolean; gmailEnabled?: boolean; gmailConnected?: boolean; sent?: boolean } } = await req.json();
   // FixIt memory (device-local profile). Model prompts get ONLY city/ZIP; the rest feeds deterministic templates.
   const pr = rawProfile && typeof rawProfile === "object" ? sanitize(rawProfile) : null;
@@ -56,10 +57,11 @@ export async function POST(req: Request) {
   const text = last.parts.map((p) => (p.type === "text" ? p.text : "")).join(" ").trim();
   const images = last.parts.flatMap((p) => (p.type === "file" && p.mediaType.startsWith("image/") ? [p.url] : []));
   const bad = checkImages(images);
-  if (bad) return refuse(bad, 413);
-  if (!approved) {
+  if (bad) return refuse(bad, "image");
+  // Approvals make no model calls; hazard text gets the deterministic safety stop, never a quota refusal.
+  if (!approved && !HAZARD.test(text)) {
     const retry = takeQuota([{ key: `s:${session.key}`, limit: SESSION_LIMIT }, { key: `ip:${clientIp(req)}`, limit: IP_LIMIT }]);
-    if (retry != null) return refuse(`You've hit the demo limit for now. Please try again in about ${Math.ceil(retry / 60)} minute(s).`, 429, { "retry-after": String(retry) });
+    if (retry != null) return refuse(`You've hit the demo limit for now. Please try again in about ${Math.ceil(retry / 60)} minute(s).`, "quota", { "retry-after": String(retry) });
   }
   let ctx: FixitCtx | undefined;
   for (const m of [...messages].reverse()) {
