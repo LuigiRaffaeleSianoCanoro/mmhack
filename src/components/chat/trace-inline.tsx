@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { ChevronDown, Clock, Coins, Info, Plug, TriangleAlert, Loader2 } from "lucide-react";
+import { ChevronDown, Clock, Coins, Info, Plug, TriangleAlert, Loader2, UserRound } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { TraceStep } from "@/lib/trace";
 import { whyLink } from "@/lib/adr";
@@ -24,10 +24,13 @@ function Icon({ label, icon, detail, onTap }: { label: string; icon: React.React
   );
 }
 
-export function TraceInline({ steps }: { steps: TraceStep[] }) {
+export function TraceInline({ steps: all }: { steps: TraceStep[] }) {
   const [open, setOpen] = useState(false);
   const [tapped, setTapped] = useState<string | null>(null);
-  if (!steps.length) return null;
+  // FixIt memory: profile use is shown as its own chip, not as a model step.
+  const prof = all.find((s) => s.id === "profile");
+  const steps = all.filter((s) => s.id !== "profile");
+  if (!steps.length && !prof) return null;
   const latency = steps.reduce((a, s) => a + (s.latencyMs ?? 0), 0);
   const cost = steps.reduce((a, s) => a + (s.costUsd ?? 0), 0);
   const failed = steps.filter((s) => s.status === "error");
@@ -53,6 +56,14 @@ export function TraceInline({ steps }: { steps: TraceStep[] }) {
         </span>
         <ChevronDown className={cn("mt-0.5 size-3.5 shrink-0 transition-transform", open && "rotate-180")} />
       </button>
+      {prof && (
+        <Tooltip>
+          <TooltipTrigger render={<span tabIndex={0} className="mt-1.5 mr-1 inline-flex items-center gap-1 rounded-full border border-mm-accent/40 bg-mm-accent-soft px-2 py-0.5 text-[11px] text-foreground" />}>
+            <UserRound className="size-3 text-mm-accent" /> {prof.why.split(". ")[0]}
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs">{prof.why}</TooltipContent>
+        </Tooltip>
+      )}
       {failed.map((s) => (
         <Tooltip key={s.id}>
           <TooltipTrigger render={<button type="button" onClick={() => setTapped(tapped === s.id ? null : s.id)} className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[11px] text-amber-200" />}>

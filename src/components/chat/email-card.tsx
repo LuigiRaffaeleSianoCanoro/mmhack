@@ -10,10 +10,10 @@ const RKEY = (uid: string) => `fixit.sent.${uid}`;
 const loadSent = (uid: string): Record<string, Result> => { try { return JSON.parse(localStorage.getItem(RKEY(uid)) ?? "{}"); } catch { return {}; } };
 
 // Preview + send of the approved landlord draft. One send per approval (keyed by message id).
-export function EmailCard({ sendKey, subject: initialSubject, draft }: { sendKey: string; subject: string; draft: string }) {
+export function EmailCard({ sendKey, subject: initialSubject, draft, defaultTo }: { sendKey: string; subject: string; draft: string; defaultTo?: string }) {
   const auth = useAuth();
   const uid = auth?.who.id ?? "guest";
-  const [to, setTo] = useState("");
+  const [to, setTo] = useState(defaultTo ?? "");
   const [subject, setSubject] = useState(initialSubject);
   const [body, setBody] = useState(draft.trim());
   const [busy, setBusy] = useState(false);
@@ -60,6 +60,7 @@ export function EmailCard({ sendKey, subject: initialSubject, draft }: { sendKey
   return (
     <form className={box} onSubmit={(e) => { e.preventDefault(); if (!busy) send(); }}>
       <p className="font-display text-xs uppercase tracking-[0.12em] text-mm-accent">Preview before sending · from your Gmail</p>
+      {defaultTo && to === defaultTo && <p className="text-[11px] text-muted-foreground">Recipient from your FixIt profile. Check it before sending.</p>}
       <input className={field} type="email" required placeholder="Landlord email" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Landlord email" />
       <input className={field} value={subject} onChange={(e) => setSubject(e.target.value)} aria-label="Subject" />
       <Textarea value={body} onChange={(e) => setBody(e.target.value)} className="max-h-60 text-sm" aria-label="Email body" />

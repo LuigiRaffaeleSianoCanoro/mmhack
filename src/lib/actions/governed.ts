@@ -40,13 +40,23 @@ export function deliveryReady(): boolean {
 // Untrusted report text: strip links/markdown so the email cannot carry phishing links or image beacons.
 const clean = (s: string, n: number) => s.replace(/https?:\/\/\S+|www\.\S+/gi, "[link removed]").replace(/[`*_#>![\]<>|]/g, "").replace(/\s+/g, " ").trim().slice(0, n);
 
-export function buildOutbound(report: string, category: string, hazard = true): Outbound {
+/** Optional renter details from FixIt memory. Used only in this deterministic template, never in a model prompt. */
+export type Renter = { address?: string; landlordName?: string; landlordEmail?: string; phone?: string; notes?: string };
+
+export function buildOutbound(report: string, category: string, hazard = true, renter: Renter = {}): Outbound {
   const cat = CATEGORIES.includes(category) ? category : "repair";
   const mode = deliveryReady() ? "send" : "export";
   // Recipient and sender are pinned server-side (env), never taken from model or user output.
-  const to = mode === "send" ? process.env.LANDLORD_EMAIL! : "your landlord";
+  // Export mode: the profile's landlord address is shown as the suggested recipient (nothing is sent from here).
+  const to = mode === "send" ? process.env.LANDLORD_EMAIL! : EMAIL.test(renter.landlordEmail ?? "") ? renter.landlordEmail! : "your landlord";
   const from = mode === "send" ? process.env.FIXIT_FROM_EMAIL! : "you";
   const issue = clean(report, 400);
+  const name = clean(renter.landlordName ?? "", 80);
+  const hello = name ? `Hello ${name},` : "Hello,";
+  const addr = clean(renter.address ?? "", 160);
+  const at = addr ? `my unit at ${addr}` : "my unit";
+  const extra = [renter.phone ? `You can reach me at ${clean(renter.phone, 30)}.` : "", renter.notes ? `Access notes: ${clean(renter.notes, 300)}` : ""].filter(Boolean).join("\n");
+  const tail = extra ? `\n${extra}\n` : "";
   return {
     action: "notify-landlord",
     tool: ALLOWED_ACTIONS["notify-landlord"],
@@ -55,8 +65,8 @@ export function buildOutbound(report: string, category: string, hazard = true): 
     to,
     subject: hazard ? `Urgent repair request: possible ${cat} hazard` : `Repair request: ${cat}`,
     body: hazard
-      ? `Hello,\n\nI am reporting an urgent ${cat} issue at my unit: "${issue}".\nThis may be a safety hazard. Please send a licensed professional within 24 hours.\n\nThank you.`
-      : `Hello,\n\nI am reporting a ${cat} issue at my unit: "${issue}".\nCould you arrange a repair at your earliest convenience? I can share photos and availability.\n\nThank you.`,
+      ? `${hello}\n\nI am reporting an urgent ${cat} issue at ${at}: "${issue}".\nThis may be a safety hazard. Please send a licensed professional within 24 hours.\n${tail}\nThank you.`
+      : `${hello}\n\nI am reporting a ${cat} issue at ${at}: "${issue}".\nCould you arrange a repair at your earliest convenience? I can share photos and availability.\n${tail}\nThank you.`,
   };
 }
 

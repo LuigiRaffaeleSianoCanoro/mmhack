@@ -16,12 +16,13 @@ import { Markdown } from "./markdown";
 import { Composer } from "./composer";
 import { TraceInline } from "./trace-inline";
 import type { TraceStep } from "@/lib/trace";
+import { loadProfile, toServer } from "@/lib/profile";
 
 const DETAILS = "<!--details-->";
 import type { MMMessage } from "@/lib/trace";
 import { cn } from "@/lib/utils";
 
-export function Chat({ slug, sessionId, initialMessages, onMessages, headerLeft }: { slug: string; sessionId?: string; initialMessages?: MMMessage[]; onMessages?: (m: MMMessage[]) => void; headerLeft?: React.ReactNode }) {
+export function Chat({ slug, profileUid, sessionId, initialMessages, onMessages, headerLeft }: { slug: string; profileUid?: string; sessionId?: string; initialMessages?: MMMessage[]; onMessages?: (m: MMMessage[]) => void; headerLeft?: React.ReactNode }) {
   const assistant = getAssistant(slug)!;
   const reduce = useReducedMotion();
   const [decisions, setDecisions] = useState<Record<string, "approved" | "rejected">>({});
@@ -31,7 +32,8 @@ export function Chat({ slug, sessionId, initialMessages, onMessages, headerLeft 
   const { messages, sendMessage, status, stop, error } = useChat<MMMessage>({
     id: sessionId ?? `mmhack-${slug}`,
     messages: initialMessages,
-    transport: new DefaultChatTransport({ api: assistant.api ?? "/api/chat", body: { assistant: slug } }),
+    // Profile is read at send time from this device (FixIt memory); the server strips it per step.
+    transport: new DefaultChatTransport({ api: assistant.api ?? "/api/chat", body: () => ({ assistant: slug, profile: profileUid ? toServer(loadProfile(profileUid)) : undefined }) }),
   });
   const busy = status === "submitted" || status === "streaming";
   const mascotStateOf = (m: MMMessage): MascotState => {
@@ -186,7 +188,7 @@ export function Chat({ slug, sessionId, initialMessages, onMessages, headerLeft 
                         />
                       );
                     if (p.type === "data-email")
-                      return <EmailCard key={i} sendKey={m.id} subject={p.data.subject} draft={p.data.body ?? m.parts.map((x) => (x.type === "text" ? x.text : "")).join("\n").split(DETAILS)[0]} />;
+                      return <EmailCard key={i} sendKey={m.id} defaultTo={profileUid ? loadProfile(profileUid)?.landlordEmail : undefined} subject={p.data.subject} draft={p.data.body ?? m.parts.map((x) => (x.type === "text" ? x.text : "")).join("\n").split(DETAILS)[0]} />;
                     if (p.type === "data-chips")
                       return m.id === messages.at(-1)?.id && !busy ? (
                         <div key={i} className="flex flex-wrap gap-2">
