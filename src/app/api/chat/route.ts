@@ -56,7 +56,7 @@ export async function POST(req: Request) {
       let failed = false;
       const result = streamText({
         model: modelFor(r),
-        system: `${assistant.system} You are "${assistant.title}" inside mmhack. Prefer short answers with clear structure.`,
+        system: `${assistant.system} You are "${assistant.title}" inside FixIt. Prefer short answers with clear structure.`,
         messages: await convertToModelMessages(messages),
         onError: ({ error }) => {
           failed = true;

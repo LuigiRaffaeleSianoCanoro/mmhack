@@ -9,7 +9,10 @@ const newsreader = Newsreader({ variable: "--font-serif", subsets: ["latin"], st
 
 export const metadata: Metadata = {
   title: "FixIt: renter repair help",
-  description: "Pick a book, open a chat. Every routing decision is visible.",
+  description: "Snap the problem. Triage, vision, a repair plan and an independent safety check.",
+  applicationName: "FixIt",
+  openGraph: { title: "FixIt: renter repair help", siteName: "FixIt", description: "Snap the problem. Triage, vision, a repair plan and an independent safety check.", type: "website" },
+  twitter: { card: "summary", title: "FixIt: renter repair help" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
