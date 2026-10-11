@@ -1,18 +1,25 @@
 import { NextResponse } from "next/server";
-import { currentUser, encodeUser, newUser, USER_COOKIE } from "@/lib/user";
+import { currentUser, USER_COOKIE } from "@/lib/user";
+import { EMAIL_RE, emailSignInEnabled, issueToken, rateLimited, sendMagicLink } from "@/lib/magic";
 
 export async function GET() {
-  return NextResponse.json({ user: await currentUser() });
+  try { await currentUser(); } catch { return NextResponse.json({ user: null, emailSignIn: false }); }
+  return NextResponse.json({ user: await currentUser(), emailSignIn: await emailSignInEnabled() });
 }
 
+// Request a magic link. Never signs anyone in directly.
 export async function POST(req: Request) {
-  const { name, email }: { name?: string; email?: string } = await req.json().catch(() => ({}));
-  const e = (email ?? "").trim();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return NextResponse.json({ error: "Enter a valid email." }, { status: 400 });
-  const user = newUser(name || e.split("@")[0], e);
-  const res = NextResponse.json({ user });
-  res.cookies.set(USER_COOKIE, encodeUser(user), { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 30 });
-  return res;
+  if (!(await emailSignInEnabled())) return NextResponse.json({ error: "Email sign-in is not available. Continue as guest." }, { status: 503 });
+  const { email }: { email?: string } = await req.json().catch(() => ({}));
+  const e = (email ?? "").trim().toLowerCase();
+  if (e.length > 120 || !EMAIL_RE.test(e)) return NextResponse.json({ error: "Enter a valid email." }, { status: 400 });
+  const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "unknown";
+  const limited = rateLimited(e, ip);
+  if (limited) return NextResponse.json({ error: limited }, { status: 429 });
+  // Link origin from the request URL (Vercel sets it to the served host); not from client-supplied body.
+  const link = `${new URL(req.url).origin}/api/auth/verify?token=${encodeURIComponent(issueToken(e))}`;
+  try { await sendMagicLink(e, link); } catch { return NextResponse.json({ error: "Couldn't send the email. Try again shortly." }, { status: 502 }); }
+  return NextResponse.json({ sent: true });
 }
 
 export async function DELETE() {
