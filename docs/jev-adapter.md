@@ -12,8 +12,9 @@
 | Valid, confident | Trace shows the model id returned by the API, measured latency, decision, confidence, P(hazard); cost "unknown" |
 | Timeout / HTTP error / auth error | Error row "Jev triage (fallback)", then gpt-5-mini triage |
 | Malformed (fails zod schema) | Same fallback |
-| P(hazard) ≥ 0.7 | Hazard → safety stop (any confidence) |
+| P(hazard) ≥ 0.7 and hazard evidence in text | Hazard → safety stop (any confidence) |
 | 0.3 ≤ P(hazard) < 0.7 | Unsure → gpt-5-mini decides |
+| P(hazard) ≥ 0.7 but no hazard evidence in the text (`HAZARD_EVIDENCE`) | gpt-5-mini decides (fix for the sample photo "This is leaking", P 0.72) |
 | P(hazard) < 0.3 and confidence < 0.6 | Same fallback (not trusted) |
 | Any path | `HAZARD` keyword rules on the text still apply; new: the same rules run on vision output, so a photo-only hazard also stops DIY planning |
 
