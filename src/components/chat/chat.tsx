@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { ApprovalCard } from "./approval-card";
 import { DeliverCard } from "./deliver-card";
 import { IllustrationCard } from "./illustration-card";
-import { EmailCard } from "./email-card";
+import { EmailCard, useSent } from "./email-card";
+import { useAuth } from "@/components/fixit/auth";
 import { Markdown } from "./markdown";
 import { Composer } from "./composer";
 import { TraceInline } from "./trace-inline";
@@ -199,7 +200,7 @@ export function Chat({ slug, profileUid, sessionId, initialMessages, onMessages,
                       ) : null;
                     return null;
                   })}
-                  {m.role === "assistant" && <TraceInline steps={stepsOf(m)} />}
+                  {m.role === "assistant" && <TraceFor m={m} steps={stepsOf(m)} />}
                   {m.role === "assistant" && busy && m.id === messages.at(-1)?.id && !m.parts.some((p) => p.type === "text") && !m.parts.some((p) => p.type === "data-approval") && (
                     <span className="h-4 w-16 animate-pulse rounded bg-muted" />
                   )}
@@ -223,4 +224,11 @@ export function Chat({ slug, profileUid, sessionId, initialMessages, onMessages,
       </div>
     </div>
   );
+}
+
+// The trace reflects the real Gmail send for this message (a sent email beats the export status).
+function TraceFor({ m, steps }: { m: MMMessage; steps: TraceStep[] }) {
+  const auth = useAuth();
+  const sent = useSent(m.id, auth?.who.id ?? "guest");
+  return <TraceInline steps={steps} sent={m.parts.some((p) => p.type === "data-email") ? sent : undefined} />;
 }

@@ -8,10 +8,10 @@ import type { DeliveryReady } from "@/lib/trace";
 type Rec = { state: "pending" | "delivered" | "unknown" | "export_only" | "rejected"; receipt?: { base44Id: string; url?: string }; error?: string; draftHash: string };
 
 const label: Record<Rec["state"], string> = {
-  pending: "Pending: waiting for the Base44 receipt…",
-  delivered: "Delivered to the Landlord Inbox",
-  unknown: "Delivery unknown. It will reconcile with Base44 before any retry.",
-  export_only: "Not sent. Saved locally (export only).",
+  pending: "Sending to your landlord's inbox…",
+  delivered: "Delivered to your landlord's inbox.",
+  unknown: "Still confirming delivery. It won't be sent twice.",
+  export_only: "Not sent. Copy the request and send it yourself.",
   rejected: "Rejected. Nothing was sent.",
 };
 
@@ -53,12 +53,12 @@ export function DeliverCard({ ready, draftText }: { ready: DeliveryReady; draftT
   return (
     <div className="max-w-md space-y-2 rounded-lg border bg-card p-3">
       <p className="flex items-center gap-2 font-display text-sm uppercase tracking-[0.12em]"><Inbox className="size-4 text-mm-accent" /> Send to Landlord Inbox</p>
-      <Textarea value={body} onChange={(e) => setBody(e.target.value)} disabled={busy || !!final} className="min-h-32 text-xs" aria-label="Landlord request draft" />
-      <p className="font-mono text-[11px] text-muted-foreground">urgency {ready.urgency} · {ready.category}{edited ? " · edited: approve again" : ""}</p>
+      <Textarea value={body} onChange={(e) => setBody(e.target.value)} disabled={busy || !!final} className="field-sizing-fixed min-h-32 w-full min-w-0 resize-y whitespace-pre-wrap break-words font-sans text-sm" aria-label="Landlord request draft" />
+      <p className="text-[11px] text-muted-foreground">{ready.urgency} urgency · {ready.category}{edited ? " · you edited it, so approve again" : ""}</p>
       {rec && !edited && (
         <p className="text-xs">
           {label[rec.state]}
-          {rec.receipt && <> · receipt <span className="font-mono">{rec.receipt.base44Id}</span>{rec.receipt.url && <> · <a className="underline" href={rec.receipt.url} target="_blank" rel="noreferrer">open</a></>}</>}
+          {rec.receipt?.url && <> · <a className="underline" href={rec.receipt.url} target="_blank" rel="noreferrer">open</a></>}
           {rec.error && rec.state !== "delivered" && <span className="block text-muted-foreground">{rec.error}</span>}
         </p>
       )}

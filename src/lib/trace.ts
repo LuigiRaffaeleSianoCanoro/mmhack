@@ -15,6 +15,8 @@ export type TraceStep = {
   status: StepStatus;
   /** Cost cannot be measured (e.g. image generation); shown as "unknown", never $0 or summed. */
   costUnknown?: boolean;
+  /** Plain-language result for the user (e.g. what the photo shows, the safety verdict). */
+  note?: string;
 };
 
 export type ApprovalRequest = {
