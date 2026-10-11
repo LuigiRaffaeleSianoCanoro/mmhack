@@ -388,10 +388,11 @@ export async function POST(req: Request) {
         visionP?.catch(() => {});
         let triage: Triage & { lang?: string } = { category: "general", urgency: "medium", hazard: false, summary: text };
         // Optional raw Jev (TypeSafe) first when flagged on; any failure falls back to gpt-5-mini.
-        let jevDone = false;
+        let jevDone = false, jevTried = false;
         if (jevEnabled()) {
-          const js: TraceStep = { id: "triage", task: "Triage the problem", model: JEV_MODEL, provider: "typesafe", why: "Jev flag on: TypeSafe SystemOne classifies with calibrated probabilities.", status: "running" };
+          const js: TraceStep = { id: "triage", task: "Triage the problem", model: JEV_MODEL, provider: "typesafe", why: "Jev (TypeSafe SystemOne) triages first: about 0.1 s and caught every hazard in our bench. gpt-5-mini is the automatic backup.", status: "running" };
           put(js);
+          jevTried = true;
           const tj = performance.now();
           try {
             const j = await jevTriage(text, images.length > 0);
@@ -404,6 +405,7 @@ export async function POST(req: Request) {
           }
         }
         if (!jevDone) try {
+          if (jevTried) tri.why = `Jev fallback: ${tri.why}`;
           put(tri);
           const r = await generateText({
             model: gateway.chat("gpt-5-mini"),

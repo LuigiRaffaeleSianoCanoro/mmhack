@@ -16,12 +16,12 @@
 ## Rejected / optional
 - **Grok (grok-4-6): removed.** Won no task; 3–10x slower; empty output at the shared token caps. No "Grok second opinion".
 - **Opus is not a default** for any step (higher cost, hit caps on plan).
-- **Jev (TypeSafe `jev-latest`): optional, unmeasured.** Only OpenRouter's `typesafe/jev-router` (a model picker that forwarded to other models, pricing not shown) was measured: 4/5, 1.7s. Raw Jev latency is NOT claimed until benchmarked on the bake TRIAGE set. If added, it sits behind a flag with gpt-5-mini fallback, and keyword hazard rules still apply.
+- **Jev (TypeSafe `jev-latest`): primary triage since Oct 11 2026, gpt-5-mini fallback.** Production bench, 14 cases x 3 runs (`bake/jev_bench_2026-10-11.json`): hazards caught 24/24 (Jev) vs 24/24 (gpt-5-mini); Jev latency median 128 ms / max 200 ms vs gpt-5-mini 962 / 1598 ms. With the original P(hazard)>=0.3 threshold Jev false-flagged 2 of 6 benign cases (washer E21 P=0.41-0.42, blank thermostat P=0.30-0.31) and fell back on 2 (low confidence). So: P>=0.7 is a hazard, P<0.3 with confidence>=0.6 is Jev's answer, anything else goes to gpt-5-mini. These thresholds were chosen after seeing this bench (in-sample). Timeout 2.5 s, no retries; any error falls back. Kill switch `FIXIT_JEV_TRIAGE=0`. Cost per call not reported by TypeSafe. Keyword hazard rules still apply. OpenRouter's `typesafe/jev-router` (4/5, 1.7 s) is a different route.
 
 ## Rules for agents and reviewers
 1. Changing a step's model requires updating this ADR with new bake evidence.
 2. Do not reintroduce Grok or make Opus a default without new measurements.
-3. Do not state Jev latency/cost as fact without a measured run.
+3. Do not state Jev cost as fact (not reported); latency claims must cite the bench file.
 4. Hazard keyword rules (`HAZARD` regex) run regardless of which triage model answered.
 
 ## Update 2026-10-11: single router
