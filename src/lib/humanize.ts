@@ -36,7 +36,7 @@ const WHY: Record<string, string> = {
   followup: "short replies don't need a big model, so this stays fast and cheap.",
   illustrate: "draws a clear picture of the repair.",
 };
-export const whyModel = (s: TraceStep) => (WHY[s.id] && isAI(s) ? `Why ${modelName(s.model) || "this model"}: ${WHY[s.id]}` : "");
+export const whyModel = (s: TraceStep) => (WHY[s.id] && isAI(s) && modelName(s.model) ? `Why ${modelName(s.model) || "this model"}: ${WHY[s.id]}` : "");
 
 const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
 

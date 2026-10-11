@@ -8,18 +8,22 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 type Event = { at: string; actor: { type: string; id: string }; action: string; from?: string; to?: string; ok: boolean; details?: Record<string, unknown> };
 type JobView = { id: string; state: string; draftHash: string; claimId?: string; store: string; storeLabel: string; audit: Event[] };
 
-const WHO: Record<string, string> = { human: "You", user: "You", agent: "FixIt", system: "FixIt", router: "FixIt", gate: "Safety gate" };
-const STATE: Record<string, string> = { intake: "Started", awaiting_approval: "Waiting for your OK", approved: "Approved", action: "Sending", done: "Done", rejected: "Declined", failed: "Didn't go through" };
+const WHO: Record<string, string> = { HUMAN: "You", AGENT: "AI", CODE: "Safety rules", SYSTEM: "FixIt" };
+const STATE: Record<string, string> = { intake: "Started", triage: "Checked", diagnosis: "Checked", awaiting_approval: "Waiting for your OK", approved: "Approved", action: "Sending", done: "Done", rejected: "Declined", failed: "Didn't go through" };
 function plain(e: Event): string {
   const a = e.action.toLowerCase();
+  if (a.includes("denied") || a.includes("blocked")) return a.includes("already claimed") ? "Blocked a second run, so nothing was sent twice." : "Blocked: it didn't match what you approved.";
   if (a.includes("created")) return "Request started.";
-  if (a.includes("approv")) return e.ok ? "You approved the request." : "Approval was refused.";
-  if (a.includes("reject")) return "You declined the request.";
-  if (a.includes("edit")) return "The draft was edited.";
-  if (a.includes("claim")) return e.ok ? "Locked so it can only run once." : "Blocked a second run.";
-  if (a.includes("blocked")) return "Blocked: it didn't match what you approved.";
+  if (a.includes("triage")) return "Figured out what kind of problem it is.";
+  if (a.includes("hazard")) return "Checked for safety hazards.";
+  if (a.includes("approval required")) return "Waited for your OK.";
+  if (a.includes("draft edited")) return "The draft was edited, so it needed your OK again.";
+  if (a.includes("human approved")) return "You approved the request.";
+  if (a.includes("human rejected")) return "You declined the request.";
+  if (a.includes("claim released")) return "Didn't go through, so it was unlocked to retry safely.";
+  if (a.includes("execution claimed")) return "Locked so it can only run once.";
+  if (a.includes("action finished")) return "Finished.";
   if (a.includes("outbound") || a.includes("send") || a.includes("export")) return e.ok ? "Delivery step finished." : "Delivery didn't go through. Nothing was sent.";
-  if (a.includes("release")) return "Unlocked after a failed attempt so it can be retried safely.";
   if (e.to) return `${STATE[e.to] ?? "Updated"}.`;
   return e.ok ? "Step recorded." : "A step didn't go through.";
 }
@@ -50,7 +54,7 @@ export function AuditDrawer({ jobId, jobToken }: { jobId: string; jobToken?: str
           {err && <li className="text-sm text-destructive">{err}</li>}
           {job?.audit.map((e, i) => (
             <li key={i} className="flex items-start gap-2 rounded-md border p-2 text-xs">
-              <span className="shrink-0 rounded bg-secondary px-1.5 py-0.5 text-[10px]">{WHO[e.actor.type] ?? "FixIt"}</span>
+              <span className="shrink-0 rounded bg-secondary px-1.5 py-0.5 text-[10px]">{WHO[e.actor.type.toUpperCase()] ?? "FixIt"}</span>
               <span className={e.ok ? "" : "text-destructive"}>{plain(e)}</span>
               <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">{new Date(e.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}</span>
             </li>
