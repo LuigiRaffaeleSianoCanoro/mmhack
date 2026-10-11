@@ -62,8 +62,8 @@ function Login({ onGuest, onUser }: { onGuest: () => void; onUser: (u: Omit<Who,
     <div className="relative flex min-h-dvh items-center justify-center px-4">
       <div aria-hidden className="brick-bg" />
       <main className="relative z-10 flex w-full max-w-sm flex-col gap-5 rounded-xl border bg-background/92 p-6 shadow-2xl">
-        <Mascot state="idle" size={84} className="-ml-2" />
-        <div>
+        <Mascot state="idle" size={208} className="mx-auto -mb-2 sm:my-4 sm:scale-[1.2]" />
+        <div className="text-center">
           <h1 className="font-display text-3xl font-bold uppercase leading-none tracking-tight">FixIt</h1>
           <p className="mt-2 text-sm text-muted-foreground">Home repairs, guided. Sign in to keep your history and send landlord requests from your own Gmail.</p>
         </div>
