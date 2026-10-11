@@ -25,7 +25,7 @@ export type ApprovalRequest = {
   store?: "anbaric-cloud" | "local-fallback";
   storeLabel?: string;
   /** AWS-55: side-effect-free preview of the one governed outbound action. */
-  outbound?: { to: string; subject: string; body: string; tool: string; mode: "swytchcode-dry-run" | "export-fallback"; note: string; idempotencyKey: string };
+  outbound?: { to: string; from: string; subject: string; body: string; tool: string; mode: "send" | "export"; note: string; idempotencyKey: string };
   /** Server-signed job snapshot so the audit survives serverless instance changes. */
   jobToken?: string;
 };
@@ -41,5 +41,5 @@ export type FixitCtx = {
 
 export type MMMessage = UIMessage<
   never,
-  { trace: TraceStep; approval: ApprovalRequest; job: { jobId: string; jobToken?: string }; chips: { options: string[] }; ctx: FixitCtx; email: { subject: string } }
+  { trace: TraceStep; approval: ApprovalRequest; job: { jobId: string; jobToken?: string }; chips: { options: string[] }; ctx: FixitCtx; email: { subject: string; body?: string } }
 >;
