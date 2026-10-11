@@ -40,3 +40,11 @@ Add an entry to `ASSISTANTS`: slug, title, author (byline), activity, blurb, spi
 
 ## Assets
 Textures are generated procedurally (`grain.png`, `cloth.png`). Image generation via the Neon gateway was skipped: its catalog lists gpt-5-5-pro as text output only, and procedural textures are smaller and tile perfectly.
+
+## Book materials (v2, Oct 11)
+- Textures generated with **gpt-6-astra** via the Neon gateway (`/openai/v1/responses`, image_generation tool, JPEG, medium): `linen`, `worn` (vintage bookcloth), `leather` (pebbled grain), `pages` (page-edge block). gpt-5-5-pro was tried once and timed out (504).
+- Post-processing (`scripts` inline in commit history): grayscale, normalized to mid-gray, made seamless by blending with a half-offset copy, resized to 256 to 384px, WebP q68. Total about 130KB. `pages.webp` keeps a cream tint.
+- Tinting: one grayscale texture serves every color via `background-blend-mode: overlay` over the spine color, so each book keeps its distinct cloth color.
+- Per book (`material` + `foil` in `src/lib/assistants.ts`): leather (Router, Plain Style), linen (Code, Vision, Ops), worn cloth (Research, Voice).
+- Spine details in CSS (`.book-spine`, `.book-band`, `.book-foil`, `.book-deboss`): rounded-spine shading, rubbed corners and edge wear (soft-light radial gradients), two embossed raised bands, gold-foil stamped titles or debossed titles.
+- 3D: top face = cover board in the same material, darkening toward the back; right end face (`.book-end`) = page block between two board edges. The stack has a slight `rotateY(-14deg)` so the page ends show. Static textures only; no animated filters, so scrolling stays on the compositor. Reduced motion is unchanged (fixed tilt, no pull-out, static grain).

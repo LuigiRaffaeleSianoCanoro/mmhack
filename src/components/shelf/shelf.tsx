@@ -43,22 +43,27 @@ function Book({
         animate={reduce ? undefined : { z: opening ? 120 : active ? 36 : 0, x: active ? 10 : 0 }}
         transition={{ duration: opening ? 0.32 : 0.22, ease: EASE }}
       >
-        {/* top face (page block) */}
+        {/* top face: front cover board, same cloth, darker toward the back */}
         <span
           aria-hidden
-          className="absolute inset-x-0 top-0 origin-top [transform:rotateX(-90deg)]"
-          style={{
-            height: "var(--book-depth)",
-            background: `linear-gradient(180deg, color-mix(in oklch, ${a.spine} 70%, black), color-mix(in oklch, ${a.spine} 85%, white 6%))`,
-          }}
+          className="book-cover absolute inset-x-0 top-0 origin-top [transform:rotateX(-90deg)]"
+          style={{ height: "var(--book-depth)", backgroundColor: a.spine, backgroundImage: `linear-gradient(180deg, oklch(0 0 0 / 0%), oklch(0 0 0 / 45%)), url(/textures/${a.material}.webp)` }}
+        />
+        {/* right end: page block (head/tail edge) between two board edges */}
+        <span
+          aria-hidden
+          className="book-end absolute left-full top-0 origin-left [transform:rotateY(90deg)]"
+          style={{ width: "var(--book-depth)", height: "var(--book-h)", ["--board" as string]: a.spine }}
         />
         {/* spine */}
         <span
-          className="spine cloth absolute inset-0 flex items-center gap-6 rounded-[3px] px-6 shadow-[inset_0_1px_0_oklch(1_0_0/12%),inset_0_-8px_16px_oklch(0_0_0/25%)]"
-          style={{ backgroundColor: a.spine, color: a.ink }}
+          className={cn("spine book-spine absolute inset-0 flex items-center gap-6 px-8", a.material === "leather" && "book-spine-leather")}
+          style={{ backgroundColor: a.spine, color: a.ink, backgroundImage: `url(/textures/${a.material}.webp)` }}
         >
-          <span className="hidden w-28 shrink-0 truncate text-left font-mono sm:block text-[10px] uppercase tracking-[0.18em] opacity-75">{a.author}</span>
-          <span className={cn("flex-1 truncate text-center", titleFont)}>{a.title}</span>
+          <span aria-hidden className="book-band left-4" />
+          <span aria-hidden className="book-band right-4" />
+          <span className="hidden w-28 shrink-0 truncate text-left font-mono text-[10px] uppercase tracking-[0.18em] opacity-75 sm:block">{a.author}</span>
+          <span className={cn("flex-1 truncate text-center", titleFont)}><span className={a.foil ? "book-foil" : "book-deboss"}>{a.title}</span></span>
           <span className="font-mono text-[11px] opacity-70">{String(i + 1).padStart(2, "0")}</span>
         </span>
       </motion.button>
@@ -106,7 +111,7 @@ export function Shelf() {
       </nav>
 
       <div className="sticky top-0 flex h-dvh items-center justify-center overflow-hidden [perspective:var(--shelf-perspective)] [perspective-origin:50%_-40%]">
-        <motion.ol style={{ rotateX: reduce ? -4 : tilt }} className="flex flex-col [transform-style:preserve-3d]">
+        <motion.ol style={{ rotateX: reduce ? -4 : tilt, rotateY: -14 }} className="flex flex-col [transform-style:preserve-3d]">
           {ASSISTANTS.map((b, i) => (
             <Book key={b.slug} a={b} i={i} spread={spread} active={i === active} opening={opening === b.slug} onFocus={() => setActive(i)} onOpen={() => open(b.slug)} />
           ))}
