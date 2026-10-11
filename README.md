@@ -151,7 +151,7 @@ sequenceDiagram
         API->>Gateway: gpt-5-mini triage
         Gateway-->>API: Triage and hazard flag
     end
-    Note over API: Both calls start together; the text triage verdict is checked first, then the photo's HAZARD line
+    Note over API: Both calls start together. Text triage is checked first, then the photo HAZARD line
 
     alt Any hazard signal
         API-->>UI: Safety stop and emergency guidance, no DIY steps
