@@ -11,7 +11,7 @@ export function EvacCard({ gas }: { gas: boolean }) {
         <Mascot state="alert" size={96} />
       </div>
       <h2 className="font-display text-2xl font-bold uppercase tracking-wide text-red-400 sm:text-3xl">{gas ? "Stop. Possible gas leak." : "Stop. Possible hazard."}</h2>
-      <p className="mt-2 text-[15px] text-foreground">Don&apos;t flip switches or use flames. Leave now, leave the door open, then call from outside.</p>
+      <p className="mt-2 text-[15px] text-foreground">{gas ? "Don\u2019t flip switches or use flames. Leave now, leave the door open, then call from outside." : "Keep away from it. If you smell gas or see sparks or smoke, leave now and call from outside."}</p>
       <div aria-hidden className="mx-auto mt-4 flex h-8 max-w-xs items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-red-300">
         <span>Leave now</span>
         <div className="relative h-full flex-1">
@@ -20,7 +20,7 @@ export function EvacCard({ gas }: { gas: boolean }) {
           ) : (
             <>
               <span className="absolute right-0 top-1/2 -translate-y-1/2 text-lg">🚪</span>
-              <motion.span className="absolute top-1/2 -translate-y-1/2 text-lg" initial={{ left: "0%", opacity: 1 }} animate={{ left: ["0%", "78%"], opacity: [1, 1, 0] }} transition={{ duration: 1.8, repeat: Infinity, ease: "easeIn", times: [0, 0.85, 1] }}>🏃</motion.span>
+              <motion.span className="absolute top-1/2 -translate-y-1/2 text-lg" initial={{ left: "0%", opacity: 1 }} animate={{ left: ["0%", "78%"], opacity: [1, 1, 0] }} transition={{ duration: 1.8, repeat: Infinity, ease: "easeIn", times: [0, 0.85, 1] }}><span className="inline-block -scale-x-100">🏃</span></motion.span>
             </>
           )}
         </div>
