@@ -18,7 +18,7 @@ import { ProsCard } from "./pros-card";
 import { inferTrade, recommendsPro } from "@/lib/pros/shared";
 import { useAuth } from "@/components/fixit/auth";
 import { Markdown } from "./markdown";
-import { Delayed, PacedText, isPacedDone, skipAll } from "./pacing";
+import { Delayed, PacedText, isPacedDone, skipAll, stripMd } from "./pacing";
 import { Composer } from "./composer";
 import { TraceInline } from "./trace-inline";
 import type { TraceStep } from "@/lib/trace";
@@ -213,7 +213,7 @@ export function Chat({ slug, profileUid, sessionId, initialMessages, onMessages,
                   {m.parts.map((p, i) => {
                     if (pace?.id === m.id) {
                       if (p.type !== "text" || pace.words < 0) return null;
-                      return <div key={i} className="max-w-[85%]" aria-live="polite"><Markdown>{typed(p.text.split(DETAILS)[0], pace.words)}</Markdown></div>;
+                      return <div key={i} className="paced max-w-[85%] whitespace-pre-wrap text-[15px] leading-relaxed" aria-busy="true">{stripMd(typed(p.text.split(DETAILS)[0], pace.words))}</div>;
                     }
                     if (pacing(m) && p.type !== "text" && p.type !== "file") return null;
                     if (p.type === "text" && m.role === "assistant")
@@ -297,7 +297,7 @@ export function Chat({ slug, profileUid, sessionId, initialMessages, onMessages,
                       ) : null;
                     return null;
                   })}
-                  {m.role === "assistant" && !pacing(m) && <TraceFor m={m} steps={stepsOf(m)} />}
+                  {m.role === "assistant" && !pacing(m) && pace?.id !== m.id && <TraceFor m={m} steps={stepsOf(m)} />}
                   {m.role === "assistant" && !(busy && m.id === messages.at(-1)?.id) && pace?.id !== m.id && !pacing(m) && <ProsFor m={m} messages={messages} zip={profileUid ? loadProfile(profileUid)?.zip ?? "" : ""} />}
                   {m.role === "assistant" && busy && m.id === messages.at(-1)?.id && !m.parts.some((p) => p.type === "text") && !m.parts.some((p) => p.type === "data-approval") && (
                     <Delayed ms={300}><span className="h-4 w-16 animate-pulse rounded bg-muted" /></Delayed>

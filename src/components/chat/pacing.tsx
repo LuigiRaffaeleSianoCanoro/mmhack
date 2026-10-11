@@ -12,7 +12,7 @@ export const SKIP_EVENT = "fixit:skip";
 export const skipAll = () => window.dispatchEvent(new Event(SKIP_EVENT));
 export const isPacedDone = (key: string) => doneKeys.has(key);
 
-const strip = (s: string) => s.replace(/\*\*|__|`/g, "").replace(/^#{1,6}\s+/gm, "");
+export const stripMd = (s: string) => s.replace(/\*\*|__|`/g, "").replace(/^#{1,6}\s+/gm, "");
 
 function cut(text: string, n: number) {
   if (n <= 0) return "";
@@ -64,7 +64,7 @@ export function PacedText({ id, text, finished, enabled, onDone, children }: { i
   if (p.done) return <><Markdown>{text}</Markdown>{children?.(true)}</>;
   return (
     <div onClick={skipAll} className="paced cursor-default whitespace-pre-wrap text-[15px] leading-relaxed" aria-busy="true">
-      {strip(p.text)}
+      {stripMd(p.text)}
     </div>
   );
 }
