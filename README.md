@@ -20,7 +20,7 @@ pnpm install && pnpm dev
 |---|---|---|
 | audio attached | gemini-3-flash | Neon AI Gateway (`$NEON_AI_GATEWAY_BASE_URL/v1`) |
 | image attached | gpt-5-4-mini | Neon AI Gateway |
-| reasoning / code intent or >600 chars | claude-sonnet-5-5 | Anthropic direct |
+| reasoning / code intent or >600 chars | claude-sonnet-5 | Neon AI Gateway |
 | everything else | gemini-3-1-flash-lite | Neon AI Gateway |
 | "send / delete / pay / deploy ..." | human approval card first | |
 

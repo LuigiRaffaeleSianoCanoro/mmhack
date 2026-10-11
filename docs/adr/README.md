@@ -6,5 +6,5 @@ Authored manually by the coding agent on Oct 11 2026 from `JUSTIFICATION.md` and
 | ADR | Decision | Status |
 |---|---|---|
 | [ADR-001](ADR-001-routed-pipeline.md) | Route each FixIt step to a different model instead of one model | Accepted |
-| [ADR-002](ADR-002-model-routing.md) | Router table: gpt-5-mini triage, gpt-5 vision, claude-sonnet-5-5 plan, gpt-5-mini cross-check, gpt-6-astra image; Grok removed; Jev optional | Accepted |
+| [ADR-002](ADR-002-model-routing.md) | Router table: gpt-5-mini triage, gpt-5 vision, claude-sonnet-5 plan (all via Neon AI Gateway), gpt-5-mini cross-check, gpt-6-astra image; Grok removed; Jev optional | Accepted |
 | [ADR-003](ADR-003-action-boundary.md) | Outbound business actions need server-side approval and governed execution | Accepted |
