@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useEffect } from "react";
 import { useAuth } from "@/components/fixit/auth";
 import { sentLine } from "@/lib/humanize";
+import { CtaCard } from "./cta-card";
 
 type Result = { ok: boolean; to?: string; id?: string; at?: number; error?: string; duplicate?: boolean };
 const RKEY = (uid: string) => `fixit.sent.${uid}`;
@@ -66,7 +67,7 @@ export function EmailCard({ sendKey, jobKey, subject: initialSubject, draft, def
   const box = "rounded-lg border border-mm-accent/40 bg-card/90 p-3 text-sm max-w-md flex flex-col gap-2";
 
   if (who.guest)
-    return <div className={box}><p className="text-muted-foreground"><Mail className="mr-1 inline size-4" />Guest preview: copy this draft to your landlord. Sign in and connect Gmail to send it from your own address.</p></div>;
+    return <div className={box}><p className="text-muted-foreground"><Mail className="mr-1 inline size-4" />Guest preview: copy this draft to your landlord. Sign in and connect Gmail to send it from your own address.</p><CtaCard cta={{ actions: ["copy", "mailto", "signin"], subject, body, to }} /></div>;
   if (result?.ok)
     return (
       <div role="status" className={box}>
