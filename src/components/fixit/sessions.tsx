@@ -1,6 +1,8 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { LogOut, MessageSquare, PanelLeft, Plus, Trash2 } from "lucide-react";
+import { LogOut, MessageSquare, PanelLeft, Plus, Trash2, UserRound } from "lucide-react";
+import { ProfileDialog } from "@/components/fixit/profile";
+import { loadProfile, markSkipped, wasSkipped, type Profile } from "@/lib/profile";
 import { useAuth } from "@/components/fixit/auth";
 import { Chat } from "@/components/chat/chat";
 import { Button } from "@/components/ui/button";
@@ -26,6 +28,18 @@ export function FixitSessions() {
   const [current, setCurrent] = useState<string>("");
   const [collapsed, setCollapsed] = useState(false);
   const [ready, setReady] = useState(false);
+  const uid = !auth || auth.who.guest ? "guest" : auth.who.id;
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [editing, setEditing] = useState<"first" | "edit" | null>(null);
+  useEffect(() => {
+    // Onboarding once per user id: shown until saved or skipped.
+    const t = setTimeout(() => {
+      const p = loadProfile(uid);
+      setProfile(p);
+      if (!p && !wasSkipped(uid) && !new URLSearchParams(location.search).has("gmail")) setEditing("first");
+    }, 0);
+    return () => clearTimeout(t);
+  }, [uid]);
   useEffect(() => {
     // Hydrate from localStorage after mount (client-only); scheduled to avoid a synchronous setState in the effect.
     const t = setTimeout(() => {
@@ -69,6 +83,11 @@ export function FixitSessions() {
           </li>
         ))}
       </ul>
+      <button type="button" onClick={() => setEditing("edit")} className="flex items-center gap-2 rounded-md border border-border px-2 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:border-mm-accent/50 hover:text-foreground">
+        <UserRound className="size-4 text-mm-accent" />
+        <span className="min-w-0 flex-1 truncate">{profile ? [profile.city || profile.zip, profile.landlordName && `landlord ${profile.landlordName}`].filter(Boolean).join(" · ") || "Profile saved" : "Add your profile"}</span>
+        <span className="font-mono text-[9px] uppercase tracking-[0.14em]">Profile</span>
+      </button>
       {auth && (
         <div className="flex items-center gap-2 border-t border-border pt-2 text-xs text-muted-foreground">
           <span className="min-w-0 flex-1 truncate" title={auth.who.email}>{auth.who.guest ? "Guest" : auth.who.name}{!auth.who.guest && (auth.gmail.connected ? " · Gmail connected" : " · Gmail not connected")}</span>
@@ -92,7 +111,14 @@ export function FixitSessions() {
     <div className="flex h-dvh">
       {!collapsed && <aside className="hidden w-64 shrink-0 border-r border-border bg-background/95 lg:block">{list}</aside>}
       <div className="min-w-0 flex-1">
-        {ready && <Chat key={current} slug="fixit" sessionId={current} initialMessages={active?.messages} onMessages={onMessages} headerLeft={toggle} />}
+        {editing && (
+          <ProfileDialog uid={uid} guest={uid === "guest"} initial={profile} first={editing === "first"} onClose={(saved) => {
+            if (!saved && editing === "first") markSkipped(uid);
+            setProfile(loadProfile(uid));
+            setEditing(null);
+          }} />
+        )}
+        {ready && <Chat key={current} slug="fixit" profileUid={uid} sessionId={current} initialMessages={active?.messages} onMessages={onMessages} headerLeft={toggle} />}
       </div>
     </div>
   );
