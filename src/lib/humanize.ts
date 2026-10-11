@@ -22,6 +22,7 @@ const NAME: Record<string, string> = {
 };
 export function stepName(s: TraceStep) {
   if (s.id === "safety") return s.provider === "human" ? "Your approval" : "Safety stop";
+  if (s.id === "vision" && s.task.startsWith("Video read")) return s.task; // video upload: "Video read by gpt-5 (5 frames)"
   return NAME[s.id] ?? s.task;
 }
 
