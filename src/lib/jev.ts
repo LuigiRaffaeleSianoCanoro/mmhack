@@ -17,6 +17,11 @@ export const JEV_HAZARD_THRESHOLD = 0.7;
 /** P(hazard) below this is "no hazard". In between, Jev is unsure and gpt-5-mini decides (bench: benign washer/thermostat scored 0.30-0.42). */
 export const JEV_SAFE_THRESHOLD = 0.3;
 
+/** Not the stop list (HAZARD in route.ts is). Broader on purpose: a miss only hands the call to gpt-5-mini.
+ * Jev may only raise a hazard when the report itself contains hazard evidence; otherwise gpt-5-mini decides.
+ * (Oct 11: sample photo + "This is leaking. What do I do?" got P(hazard) 0.72 with no evidence.) */
+export const HAZARD_EVIDENCE = /gas|smell|odou?r|rotten egg|sulfu?r|sulphur|hiss|spark|scorch|burn|smok|fire|flame|crackl|buzz|hot to the touch|warm|flicker|shock|wir(e|ing)|outlet|breaker|carbon monoxide|\bco\b|alarm|detector|headache|dizz|nause|soot|pour|burst|flood|inches of water|sewage|ceiling|collaps|sag|olor|humo|chispa/i;
+
 export const jevEnabled = () => process.env.FIXIT_JEV_TRIAGE !== "0" && !!process.env.TYPESAFE_API_KEY;
 
 const CATEGORIES = ["plumbing", "electrical", "gas", "appliance", "hvac", "pest", "structural", "general"] as const;
@@ -64,6 +69,8 @@ export async function jevTriage(text: string, hasPhoto: boolean): Promise<JevTri
   if (!p.success) throw new JevFallback("malformed Jev output");
   const { category, urgency, hazard } = p.data.answers;
   const confidence = Math.min(category.confidence, urgency.confidence);
+  if (hazard.noul >= JEV_HAZARD_THRESHOLD && !HAZARD_EVIDENCE.test(text))
+    throw new JevFallback(`hazard P ${hazard.noul.toFixed(2)} without hazard evidence in the text after ${latencyMs} ms`);
   const isHazard = hazard.noul >= JEV_HAZARD_THRESHOLD;
   // Unsure about the hazard: let gpt-5-mini decide (it caught every hazard in the bench).
   if (!isHazard && hazard.noul >= JEV_SAFE_THRESHOLD)
