@@ -4,13 +4,16 @@ import { ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ApprovalRequest } from "@/lib/trace";
+import { AuditDrawer } from "./audit-drawer";
 
 export function ApprovalCard({
   request,
   decided,
+  jobToken,
   onDecide,
 }: {
   request: ApprovalRequest;
+  jobToken?: string;
   decided?: "approved" | "rejected";
   onDecide: (d: "approved" | "rejected") => void;
 }) {
@@ -30,6 +33,7 @@ export function ApprovalCard({
         </CardHeader>
         <CardContent>
           <p className="rounded-md bg-background/60 p-2 font-mono text-xs text-muted-foreground line-clamp-3">{request.prompt}</p>
+          {request.storeLabel && <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Audited job · {request.storeLabel}</p>}
         </CardContent>
         <CardFooter className="gap-2">
           {decided ? (
@@ -40,6 +44,7 @@ export function ApprovalCard({
               <Button size="sm" variant="ghost" onClick={() => onDecide("rejected")}>Reject</Button>
             </>
           )}
+          {request.jobId && <AuditDrawer jobId={request.jobId} jobToken={jobToken} />}
         </CardFooter>
       </Card>
     </motion.div>

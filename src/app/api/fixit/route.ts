@@ -3,7 +3,10 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { estimateCost } from "@/lib/router";
 import { jevEnabled, jevTriage, JEV_MODEL } from "@/lib/jev";
-import type { FixitCtx, MMMessage, TraceStep } from "@/lib/trace";
+import type { ApprovalRequest, FixitCtx, MMMessage, TraceStep } from "@/lib/trace";
+import { claimExecution, createJob, finish as finishJob, getJob, sealJob, STORE_KIND, STORE_LABEL, transition, type FixitJob } from "@/lib/jobs/store";
+import { readSession, sessionHeader } from "@/lib/jobs/session";
+import { actor } from "@/lib/jobs/workflow";
 
 export const maxDuration = 120;
 
@@ -23,7 +26,8 @@ const MINI = { "neon-gateway": { reasoningEffort: "minimal" } };
 const json = <T,>(t: string): T => JSON.parse(t.slice(t.indexOf("{"), t.lastIndexOf("}") + 1));
 
 export async function POST(req: Request) {
-  const { messages, approved }: { messages: MMMessage[]; approved?: boolean } = await req.json();
+  const { messages, approved, jobId, draftHash, jobToken }: { messages: MMMessage[]; approved?: boolean; jobId?: string; draftHash?: string; jobToken?: string } = await req.json();
+  const session = readSession(req);
   const last = messages[messages.length - 1];
   const text = last.parts.map((p) => (p.type === "text" ? p.text : "")).join(" ").trim();
   const images = last.parts.flatMap((p) => (p.type === "file" && p.mediaType.startsWith("image/") ? [p.url] : []));
@@ -69,10 +73,25 @@ export async function POST(req: Request) {
           return fallback;
         }
       };
+      // AWS-54: every approval card is backed by an audited job (session + draft hash). If the store
+      // fails entirely, the card still renders, unaudited, and the approved action only drafts text.
+      const approval = (reason: string, prompt: string, why: Record<string, unknown>): ApprovalRequest => {
+        const base = { id: "approval", action: "notify landlord", reason, prompt };
+        try {
+          const job = createJob(session.id, actor.system(), prompt);
+          transition(job, "triage", actor.agent(ctx?.triage ? "gpt-5-mini" : "rules"), "triage classified", why);
+          transition(job, "diagnosis", actor.code("hazard-rules"), "hazard rules evaluated", { keywordHazard: HAZARD.test(text) });
+          transition(job, "awaiting_approval", actor.code("approval-gate"), "human approval required", { draftHash: job.draftHash });
+          return { ...base, jobId: job.id, draftHash: job.draftHash, jobToken: sealJob(job), store: STORE_KIND, storeLabel: STORE_LABEL };
+        } catch (e) {
+          console.error("[fixit] job store unavailable:", (e as Error).message);
+          return base;
+        }
+      };
       const safetyStop = (category: string) => {
         put({ id: "safety", task: "Safety stop", model: "rules + triage", provider: "router", why: "Hazard detected. No DIY steps. Escalate to landlord or emergency services.", status: "awaiting_approval" });
         say("s", `**Stop: this looks hazardous (${category}).** If you smell gas or see sparks or smoke, leave now and call 911 or your utility from outside. I can draft an urgent request to your landlord.`);
-        writer.write({ type: "data-approval", id: "approval", data: { id: "approval", action: "notify landlord", reason: "Draft an urgent repair request to your landlord. Nothing is sent automatically.", prompt: ctx?.summary || text } });
+        writer.write({ type: "data-approval", id: "approval", data: approval("Draft an urgent repair request to your landlord. Nothing is sent automatically.", ctx?.summary || text, { category, hazard: true }) });
         finish();
       };
 
@@ -124,11 +143,28 @@ export async function POST(req: Request) {
 
       // Approved: draft landlord request.
       if (approved) {
-        put({ id: "safety", task: "Approval", model: "you", provider: "human", why: "Approved: drafting landlord request. Signed-in users can preview and send it from their own Gmail; guests get the draft only.", status: "done" });
-        await sonnet("Draft landlord request", "Approved: write a clear, urgent repair request.",
+        // The server, not the client flag, decides: single audited execution claim bound to session + draft hash.
+        let job: FixitJob | null = null;
+        if (jobId) {
+          job = getJob(jobId, jobToken);
+          const claim = job ? claimExecution(job, actor.code("execution-gate"), session.id, String(draftHash ?? "")) : ({ ok: false, reason: "job not found" } as const);
+          put({ id: "gate", task: "Execution claim", model: STORE_LABEL, provider: "router", why: claim.ok ? `Human approval matches draft hash; single claim ${claim.claimId.slice(0, 8)}.` : `Denied: ${claim.reason}. Audited.`, status: claim.ok ? "done" : "error" });
+          if (!claim.ok) {
+            say("deny", claim.reason === "already claimed" ? "This request was already approved and drafted above. Nothing ran twice." : `**Not run.** The approval is no longer valid (${claim.reason}). Nothing was drafted or sent.`);
+            finish();
+            return;
+          }
+        }
+        put({ id: "safety", task: "Approval", model: "you", provider: "human", why: job ? "Approved: drafting landlord request. Signed-in users can preview and send it from their own Gmail; guests get the draft only." : "Approved (unaudited: job store unavailable). Drafting only.", status: "done" });
+        const draft = await sonnet("Draft landlord request", "Approved: write a clear, urgent repair request.",
           `Draft a short, firm, polite repair request from a renter to a landlord in ${lang}: issue, any safety risk, ask for a licensed pro soon, availability placeholder. Under 120 words.`,
           `Issue: ${ctx?.summary ?? text}\nConversation:\n${transcript}`);
         writer.write({ type: "data-email", id: "email", data: { subject: `Repair request: ${(ctx?.summary ?? text).slice(0, 80)}` } });
+        if (job) {
+          const j = getJob(job.id) ?? job;
+          if (draft) finishJob(j, actor.agent("claude-sonnet-5-5"), { result: "landlord request drafted", chars: draft.length });
+          writer.write({ type: "data-job", id: "job", data: { jobId: j.id, jobToken: sealJob(j) } });
+        }
         finish();
         return;
       }
@@ -248,13 +284,13 @@ export async function POST(req: Request) {
         await mini<{ v: string }>("check", "Cross-check safety", "Different model family audits the plan for unsafe or lease-violating steps.",
           `Audit this renter DIY repair plan. Reply ONLY JSON {"v":"PASS: reason" or "FLAG: reason"} (one line).\nPlan:\n${planText}`, { v: "" });
       }
-      writer.write({ type: "data-approval", id: "approval", data: { id: "approval", action: "notify landlord", reason: "Want me to draft a repair request to your landlord instead? Nothing is sent automatically.", prompt: ctx.summary } });
+      writer.write({ type: "data-approval", id: "approval", data: approval("Want me to draft a repair request to your landlord instead? Nothing is sent automatically.", ctx.summary, { category: ctx.triage.category, hazard: false }) });
       save({ ...ctx, stage: "done", pending: [] });
       finish();
     },
     onError: (e) => (e instanceof Error ? e.message : "FixIt failed"),
   });
-  return createUIMessageStreamResponse({ stream });
+  return createUIMessageStreamResponse({ stream, headers: session.fresh ? { "set-cookie": sessionHeader(session.id) } : undefined });
 }
 
 function reasonOf(e: unknown) {

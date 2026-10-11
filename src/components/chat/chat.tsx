@@ -23,6 +23,8 @@ export function Chat({ slug, sessionId, initialMessages, onMessages, headerLeft 
   const assistant = getAssistant(slug)!;
   const reduce = useReducedMotion();
   const [decisions, setDecisions] = useState<Record<string, "approved" | "rejected">>({});
+  // Latest server-signed job snapshots (AWS-54), so audit state survives serverless instance changes.
+  const [jobTokens, setJobTokens] = useState<Record<string, string>>({});
   const { messages, sendMessage, status, stop, error } = useChat<MMMessage>({
     id: sessionId ?? `mmhack-${slug}`,
     messages: initialMessages,
@@ -35,6 +37,10 @@ export function Chat({ slug, sessionId, initialMessages, onMessages, headerLeft 
     if (last && busy) return "thinking";
     if (last && m.parts.some((p) => p.type === "text")) return "happy";
     return "idle";
+  };
+  const tokenOf = (jobId: string, fallback?: string) => {
+    for (const m of [...messages].reverse()) for (const p of m.parts) if (p.type === "data-job" && p.data.jobId === jobId && p.data.jobToken) return p.data.jobToken;
+    return jobTokens[jobId] ?? fallback;
   };
   useEffect(() => {
     if (!busy && messages.length) onMessages?.(messages);
@@ -149,9 +155,20 @@ export function Chat({ slug, sessionId, initialMessages, onMessages, headerLeft 
                           key={i}
                           request={p.data}
                           decided={decisions[m.id]}
-                          onDecide={(d) => {
+                          jobToken={p.data.jobId ? tokenOf(p.data.jobId, p.data.jobToken) : undefined}
+                          onDecide={async (d) => {
                             setDecisions((x) => ({ ...x, [m.id]: d }));
-                            if (d === "approved") sendMessage({ text: p.data.prompt }, { body: { approved: true } });
+                            const { jobId, draftHash } = p.data;
+                            let jobToken = jobId ? tokenOf(jobId, p.data.jobToken) : undefined;
+                            if (jobId) {
+                              const r = await fetch(`/api/jobs/${jobId}/decide`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ decision: d, draftHash, jobToken }) }).catch(() => null);
+                              const j = (await r?.json().catch(() => null)) as { job?: { jobToken?: string } } | null;
+                              if (j?.job?.jobToken) {
+                                jobToken = j.job.jobToken;
+                                setJobTokens((x) => ({ ...x, [jobId]: j.job!.jobToken! }));
+                              }
+                            }
+                            if (d === "approved") sendMessage({ text: p.data.prompt }, { body: { approved: true, jobId, draftHash, jobToken } });
                           }}
                         />
                       );
