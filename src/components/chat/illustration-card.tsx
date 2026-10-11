@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { ImageIcon, Loader2 } from "lucide-react";
-import { IMAGE_MODEL, type IllustrationRequest, type IllustrationResult } from "@/lib/illustration";
+import { IMAGE_MODEL, fallbackSrc, type IllustrationRequest, type IllustrationResult } from "@/lib/illustration";
 import type { TraceStep } from "@/lib/trace";
 
 const PENDING_MS = 20_000;
@@ -22,18 +22,20 @@ export function IllustrationCard({ request, onTrace }: { request: IllustrationRe
     started.current = true;
     const base: TraceStep = { id: "illustrate", task: "Repair illustration", model: request.mode === "sample" ? "pre-generated" : IMAGE_MODEL, provider: "neon-gateway", why: "Async, optional, non-instructional. Image cost is not measured.", status: "running", costUnknown: true };
     traceRef.current(base);
+    const t0 = performance.now();
     const slowTimer = setTimeout(() => setSlow(true), PENDING_MS);
     const simulate = new URLSearchParams(window.location.search).get("simulateImage") ?? undefined;
     fetch("/api/fixit/illustrate", { method: "POST", headers: { "content-type": "application/json" }, signal: AbortSignal.timeout(CLIENT_DEADLINE_MS), body: JSON.stringify({ ...request, simulate }) })
       .then((r) => (r.ok ? (r.json() as Promise<IllustrationResult>) : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .catch((e: Error): IllustrationResult => ({ status: "unavailable", reason: `Illustration unavailable (${e.message}).`, latencyMs: CLIENT_DEADLINE_MS, attempts: 0 }))
+      // Transport/deadline failure: still show the labelled pre-generated image, never a broken state.
+      .catch((): IllustrationResult => ({ status: "fallback", src: fallbackSrc(request.category), reason: "Live illustration unavailable; showing a pre-generated sample.", latencyMs: Math.round(performance.now() - t0), attempts: 1 }))
       .then((r) => {
         clearTimeout(slowTimer);
         setResult(r);
         traceRef.current({
           ...base,
           model: r.status === "live" ? r.model : r.attempts ? `${IMAGE_MODEL} → sample` : request.mode === "sample" ? "pre-generated" : IMAGE_MODEL,
-          status: r.status === "live" ? "done" : r.status === "fallback" && !r.attempts ? "done" : r.status === "unavailable" && !r.attempts ? "skipped" : "error",
+          status: r.status === "unavailable" ? "skipped" : "done",
           latencyMs: r.latencyMs,
           why: r.status === "live" ? `Generated live by ${r.model} (JPEG, ${r.attempts} attempt${r.attempts > 1 ? "s" : ""}). Image cost unknown.` : `${r.reason}${r.attempts ? ` Attempts: ${r.attempts}.` : " No image API call."}`,
         });

@@ -16,6 +16,8 @@ export type IllustrationRequest = {
   summary: string;
   /** "live" = eligible upload, "sample" = bundled sample photo (no API call). */
   mode: "live" | "sample";
+  /** Server-signed eligibility ticket (AWS-60 review): required for any live generation. */
+  ticket?: string;
 };
 
 export type IllustrationResult =

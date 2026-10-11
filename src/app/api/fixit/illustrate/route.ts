@@ -1,4 +1,5 @@
 import { IMAGE_MODEL, fallbackSrc, normalizeCategory, type IllustrationResult } from "@/lib/illustration";
+import { readTicket } from "@/lib/illustration-ticket";
 
 // Optional, non-blocking repair illustration. Never called for hazardous reports.
 export const maxDuration = 60;
@@ -6,7 +7,7 @@ export const maxDuration = 60;
 const clamp = (v: string | undefined, d: number, lo: number, hi: number) => { const n = Number(v); return Number.isFinite(n) && v ? Math.min(hi, Math.max(lo, n)) : d; };
 const DEADLINE_MS = clamp(process.env.FIXIT_IMAGE_DEADLINE_MS, 45_000, 10_000, 55_000); // total server budget (medium JPEG measured ~39s; low ~22s)
 const ATTEMPT_MS = clamp(process.env.FIXIT_IMAGE_ATTEMPT_MS, 42_000, 5_000, 55_000); // per-attempt timeout
-const MAX_B64 = Number(process.env.FIXIT_IMAGE_MAX_B64 ?? 3_000_000); // ~2.2 MB JPEG
+const MAX_B64 = clamp(process.env.FIXIT_IMAGE_MAX_B64, 3_000_000, 100_000, 6_000_000); // ~2.2 MB JPEG
 const QUALITY = ["low", "medium", "high"].includes(process.env.FIXIT_IMAGE_QUALITY ?? "") ? process.env.FIXIT_IMAGE_QUALITY! : "medium"; // low | medium | high
 const HAZARD = /\b(gas|spark|sparking|burning|smoke|shock|exposed wire|carbon monoxide|flood(ing)?|sewage|sagging)\b/i;
 
@@ -45,10 +46,14 @@ async function attempt(prompt: string, ms: number): Promise<string> {
 
 export async function POST(req: Request) {
   const t0 = performance.now();
-  const body = (await req.json().catch(() => ({}))) as { category?: string; summary?: string; mode?: string; hazard?: boolean; simulate?: string };
+  const raw = (await req.json().catch(() => null)) as { category?: string; ticket?: string; simulate?: string } | null;
+  const ms = () => Math.round(performance.now() - t0);
+  const ticket = readTicket(raw?.ticket);
+  // No valid server ticket: never spend image budget; show the labelled pre-generated sample.
+  if (!ticket) return Response.json({ status: "fallback", src: fallbackSrc(normalizeCategory(raw?.category)), reason: "Pre-generated sample (no live generation for this request).", latencyMs: ms(), attempts: 0 } satisfies IllustrationResult);
+  const body = { ...ticket, hazard: false, simulate: process.env.VERCEL_ENV === "production" ? undefined : raw?.simulate };
   const category = normalizeCategory(body.category);
   const summary = String(body.summary ?? "").replace(/[^\p{L}\p{N} ,.'-]/gu, " ").slice(0, 300);
-  const ms = () => Math.round(performance.now() - t0);
   const reply = (r: IllustrationResult) => Response.json(r);
 
   // Never illustrate hazardous or uncertain cases (defense in depth; /api/fixit also suppresses).
