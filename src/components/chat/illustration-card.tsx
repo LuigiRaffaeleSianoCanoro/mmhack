@@ -57,8 +57,8 @@ export function IllustrationCard({ request, onTrace }: { request: IllustrationRe
           {slow ? "Still drawing the illustration… your plan above is ready to use." : "Drawing an illustration…"}
         </div>
       )}
-      <figcaption className="px-3 py-2 font-mono text-[11px] text-muted-foreground">
-        {!result ? `${IMAGE_MODEL} · pending` : result.status === "live" ? `Live · ${result.model} · illustrative only, not instructions · cost unknown` : "Pre-generated sample illustration · not live · illustrative only, not instructions"}
+      <figcaption className="px-3 py-2 text-[11px] text-muted-foreground">
+        {!result ? "Drawing…" : result.status === "live" ? "Illustration drawn for your repair. A picture to help, not instructions." : "Reference picture (not drawn live). A picture to help, not instructions."}
       </figcaption>
     </figure>
   );

@@ -68,14 +68,14 @@ export async function POST(req: Request) {
       const finish = () => writer.write({ type: "finish" });
       const usedProfile = (items: string[], how: string) => items.length && put({ id: "profile", task: "Profile", model: "your profile", provider: "router", why: `Used your profile: ${items.join(", ")}. ${how}`, status: "done", latencyMs: 0 });
       // Ask gpt-5-mini for a small JSON turn, traced.
-      const mini = async <T,>(id: string, task: string, why: string, prompt: string, fallback: T): Promise<T> => {
+      const mini = async <T,>(id: string, task: string, why: string, prompt: string, fallback: T, noteOf?: (v: T) => string | undefined): Promise<T> => {
         const s: TraceStep = { id, task, model: "gpt-5-mini", provider: "neon-gateway", why, status: "running" };
         put(s);
         const t = performance.now();
         try {
           const r = await generateText({ model: gateway.chat("gpt-5-mini"), providerOptions: MINI, prompt });
           const v = json<T>(r.text);
-          done(s, t, r.usage);
+          done(s, t, r.usage, noteOf ? { note: noteOf(v)?.slice(0, 160) } : undefined);
           return v;
         } catch (e) {
           fail(s, t, e);
@@ -277,7 +277,7 @@ export async function POST(req: Request) {
             // Missing verdict: fall back to strong hazard keywords rather than assuming safe.
             const visHazard = verdict ? verdict === "yes" : /\b(spark\w*|exposed wir\w*|scorch\w*|melt\w*|smoke|fire|gas leak|sewage)\b/i.test(r.text);
             observed = r.text.replace(/^.*HAZARD\W*(yes|no).*$/gim, "").trim();
-            done(vis, t0, r.usage);
+            done(vis, t0, r.usage, { note: observed.split("\n").map((l) => l.replace(/^[\s*•\-\d.]+|\*\*/g, "").replace(/^[^:]{0,24}:\s*/, "").trim()).filter(Boolean).slice(0, 2).join(", ").slice(0, 140) });
             // Post-vision hazard stop: the photo itself can reveal a hazard the text did not mention.
             // Uses the model's explicit verdict, not keywords, so "gas stove" or "no smoke" do not false-stop the demo.
             if (visHazard) return safetyStop(/gas/i.test(observed) ? "gas" : /spark|wire|shock/i.test(observed) ? "electrical" : triage.category || "hazard");
@@ -341,7 +341,8 @@ export async function POST(req: Request) {
         `Issue: ${ctx.summary}\nPhoto analysis: ${ctx.observed || "none"}\nTriage: ${JSON.stringify(ctx.triage)}\nConversation:\n${transcript}`);
       if (planText) {
         await mini<{ v: string }>("check", "Cross-check safety", "Different model family audits the plan for unsafe or lease-violating steps.",
-          `Audit this renter DIY repair plan. Reply ONLY JSON {"v":"PASS: reason" or "FLAG: reason"} (one line).\nPlan:\n${planText}`, { v: "" });
+          `Audit this renter DIY repair plan. Reply ONLY JSON {"v":"PASS: reason" or "FLAG: reason"} (one line).\nPlan:\n${planText}`, { v: "" },
+          (r) => (/^\s*PASS/i.test(r.v) ? "pass" : /^\s*FLAG/i.test(r.v) ? `flag:${r.v.replace(/^\s*FLAG\W*/i, "")}` : undefined));
       }
       writer.write({ type: "data-approval", id: "approval", data: await approval("Want me to draft a repair request to your landlord instead? Nothing is sent automatically.", ctx.summary, { category: ctx.triage.category, hazard: false }) });
       // AWS-60 (after the approval card so the CTA stays above the fold): optional illustration, generated async by the client after the plan; never for hazards or photo-less cases.

@@ -27,28 +27,27 @@ export function ApprovalCard({
       <Card className="border-mm-accent/40 bg-mm-accent-soft/40 max-w-md">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 font-display text-sm uppercase tracking-[0.12em]">
-            <ShieldAlert className="size-4 text-mm-accent" /> Approval needed: {request.action}
+            <ShieldAlert className="size-4 text-mm-accent" /> Your OK needed
           </CardTitle>
           <CardDescription>{request.reason}</CardDescription>
         </CardHeader>
         <CardContent>
-          {!request.outbound && <p className="rounded-md bg-background/60 p-2 font-mono text-xs text-muted-foreground whitespace-pre-wrap break-words max-h-40 overflow-y-auto">{request.prompt}</p>}
+          {!request.outbound && <p className="rounded-md bg-background/60 p-2 text-sm text-muted-foreground whitespace-pre-wrap break-words max-h-40 overflow-y-auto">{request.prompt}</p>}
           {request.outbound && (
             <div className="mt-2 rounded-md border bg-background/60 p-2 text-xs">
-              <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                {request.outbound.mode === "send" ? "Governed send · Swytchcode" : "Preview / export only"} · {request.outbound.tool}
+              <p className="text-[11px] text-muted-foreground">
+                {request.outbound.mode === "send" ? "If you approve, we send this email once." : "Preview only: nothing is sent automatically."}
               </p>
-              <p className="mt-1 text-muted-foreground">{request.outbound.note}</p>
               <p className="mt-1"><b>To:</b> {request.outbound.to}</p>
               <p><b>Subject:</b> {request.outbound.subject}</p>
               <p className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap break-words text-muted-foreground">{request.outbound.body}</p>
             </div>
           )}
-          {request.storeLabel && <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Audited job · {request.storeLabel}</p>}
+          <p className="mt-2 text-[11px] text-muted-foreground">Nothing happens until you approve. Every step is recorded.</p>
         </CardContent>
         <CardFooter className="gap-2">
           {decided ? (
-            <span className="text-xs text-muted-foreground">{decided === "approved" ? "Approved. Running." : "Rejected. Nothing ran."}</span>
+            <span className="text-xs text-muted-foreground">{decided === "approved" ? "You approved this. It can't be changed or sent twice." : "Rejected. Nothing ran."}</span>
           ) : (
             <>
               <Button size="sm" onClick={() => onDecide("approved")}>{request.outbound?.mode === "send" ? "Approve & send" : "Approve"}</Button>
