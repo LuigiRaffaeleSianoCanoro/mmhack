@@ -94,7 +94,7 @@ export function Chat({ slug, profileUid, sessionId, initialMessages, onMessages,
       <div className="flex min-h-0 flex-1">
         <main className="flex min-w-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 overflow-y-auto">
-            <div className="mx-auto flex min-h-full max-w-2xl flex-col gap-5 bg-background/80 sm:bg-background/88 px-4 py-6 shadow-[0_0_60px_30px_oklch(0.125_0.005_300/0.6)]">
+            <div className="mx-auto flex min-h-full max-w-2xl flex-col gap-5 chat-legible bg-background/50 px-4 py-6 backdrop-blur-[3px] shadow-[0_0_60px_30px_oklch(0.125_0.005_300/0.3)]">
               {messages.length === 0 && (
                 <div className="flex flex-col gap-6 pt-[8vh]">
                   <Mascot state="idle" size={112} className="-ml-3" />

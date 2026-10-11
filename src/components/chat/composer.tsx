@@ -74,7 +74,7 @@ export function Composer({
       onDragLeave={(e) => { if (!hasFiles(e)) return; dragDepth.current = Math.max(0, dragDepth.current - 1); if (!dragDepth.current) setDrag(false); }}
       onDrop={(e) => { if (!hasFiles(e)) return; e.preventDefault(); dragDepth.current = 0; setDrag(false); add(e.dataTransfer.files); }}
       aria-label="Message composer. You can paste or drop images here."
-      className={cn("ribbed-glass relative overflow-hidden rounded-xl border p-2 transition-colors focus-within:border-mm-accent/50", drag && "border-mm-accent border-dashed bg-mm-accent-soft/30")}
+      className={cn("ribbed-glass chat-input-glass relative overflow-hidden rounded-xl border p-2 transition-colors focus-within:border-mm-accent/50", drag && "border-mm-accent border-dashed bg-mm-accent-soft/30")}
     >
       {drag && (
         <div aria-hidden className="pointer-events-none absolute inset-0 z-10 grid place-items-center rounded-xl bg-background/70 text-sm text-foreground">
