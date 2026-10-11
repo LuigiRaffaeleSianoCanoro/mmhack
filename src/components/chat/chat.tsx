@@ -87,7 +87,7 @@ export function Chat({ slug, profileUid, sessionId, initialMessages, onMessages,
   /* eslint-enable react-hooks/set-state-in-effect */
   useEffect(() => {
     const last = messages.at(-1);
-    if (pace || (last && isHazard(last) && !reduce)) { evacRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+    if (pace || (last && isHazard(last))) { evacRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
     endRef.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "end" });
   }, [messages, reduce, pace]);
   const typed = (text: string, words: number) => { const w = text.split(/(\s+)/); return w.slice(0, Math.max(0, words) * 2).join(""); };
@@ -106,14 +106,13 @@ export function Chat({ slug, profileUid, sessionId, initialMessages, onMessages,
       {slug === "fixit" && <div aria-hidden className="brick-bg" />}
       <header className="ribbed-glass relative z-30 flex h-12 shrink-0 items-center gap-3 border-b px-4">
         {headerLeft}
-        <Link href="/" className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground" aria-label="FixIt home">
-          <span className="font-display text-sm font-bold uppercase tracking-[0.2em] text-foreground">
-            mm<span className="text-mm-accent">hack</span>
+        <Link href="/" className="flex items-center gap-1.5 text-foreground transition-opacity hover:opacity-85" aria-label="FixIt home">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/mascot/idle.webp" alt="" width={24} height={24} className="size-6 select-none" draggable={false} />
+          <span className="font-display text-base font-bold uppercase leading-none tracking-[0.08em]">
+            Fix<span className="text-mm-accent">It</span>
           </span>
         </Link>
-        <span className="cloth hidden h-6 items-center rounded-[2px] px-3 font-mono text-[10px] uppercase tracking-[0.16em] sm:flex" style={{ backgroundColor: assistant.spine, color: assistant.ink }}>
-          {assistant.title}
-        </span>
         <span className="ml-auto font-mono text-[10px] text-muted-foreground" title="Session model cost (estimate)">session ${sessionCost.toFixed(3)}</span>
       </header>
 
