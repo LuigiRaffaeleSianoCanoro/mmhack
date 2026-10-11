@@ -7,6 +7,7 @@ import type { ApprovalRequest, FixitCtx, MMMessage, TraceStep } from "@/lib/trac
 import { claimExecution, createJob, finish as finishJob, releaseClaim, getJob, sealJob, STORE_KIND, STORE_LABEL, transition, type FixitJob } from "@/lib/jobs/store";
 import { readSession, sessionHeader } from "@/lib/jobs/session";
 import { actor } from "@/lib/jobs/workflow";
+import { buildOutbound, canonical, execute, lookup, preview, type ExecRecord, type Outbound } from "@/lib/actions/governed";
 
 export const maxDuration = 120;
 
@@ -75,23 +76,26 @@ export async function POST(req: Request) {
       };
       // AWS-54: every approval card is backed by an audited job (session + draft hash). If the store
       // fails entirely, the card still renders, unaudited, and the approved action only drafts text.
-      const approval = (reason: string, prompt: string, why: Record<string, unknown>): ApprovalRequest => {
+      const approval = async (reason: string, prompt: string, why: Record<string, unknown>): Promise<ApprovalRequest> => {
         const base = { id: "approval", action: "notify landlord", reason, prompt };
         try {
-          const job = createJob(session.key, actor.system(), prompt);
+          // AWS-55: the approved artifact is the exact outbound payload (recipient pinned server-side), not free text.
+          const outbound = buildOutbound(prompt, String(why.category ?? "repair"), why.hazard === true);
+          const job = createJob(session.key, actor.system(), canonical(outbound));
           transition(job, "triage", actor.agent(ctx?.triage ? "gpt-5-mini" : "rules"), "triage classified", why);
           transition(job, "diagnosis", actor.code("hazard-rules"), "hazard rules evaluated", { keywordHazard: HAZARD.test(text) });
           transition(job, "awaiting_approval", actor.code("approval-gate"), "human approval required", { draftHash: job.draftHash });
-          return { ...base, jobId: job.id, draftHash: job.draftHash, jobToken: sealJob(job), store: STORE_KIND, storeLabel: STORE_LABEL };
+          const pv = await preview(job.id, outbound).catch(() => undefined);
+          return { ...base, jobId: job.id, draftHash: job.draftHash, jobToken: sealJob(job), store: STORE_KIND, storeLabel: STORE_LABEL, outbound: pv };
         } catch (e) {
           console.error("[fixit] job store unavailable:", (e as Error).message);
           return base;
         }
       };
-      const safetyStop = (category: string) => {
+      const safetyStop = async (category: string) => {
         put({ id: "safety", task: "Safety stop", model: "rules + triage", provider: "router", why: "Hazard detected. No DIY steps. Escalate to landlord or emergency services.", status: "awaiting_approval" });
         say("s", `**Stop: this looks hazardous (${category}).** If you smell gas or see sparks or smoke, leave now and call 911 or your utility from outside. I can draft an urgent request to your landlord.`);
-        writer.write({ type: "data-approval", id: "approval", data: approval("Draft an urgent repair request to your landlord. Nothing is sent automatically.", ctx?.summary || text, { category, hazard: true }) });
+        writer.write({ type: "data-approval", id: "approval", data: await approval("Draft an urgent repair request to your landlord. Nothing is sent automatically.", ctx?.summary || text, { category, hazard: true }) });
         finish();
       };
 
@@ -156,6 +160,29 @@ export async function POST(req: Request) {
           job = getJob(jobId, jobToken);
           const claim = job ? claimExecution(job, actor.code("execution-gate"), session.key, String(draftHash ?? "")) : ({ ok: false, reason: "job not found" } as const);
           put({ id: "gate", task: "Execution claim", model: STORE_LABEL, provider: "router", why: claim.ok ? `Human approval matches draft hash; single claim ${claim.claimId.slice(0, 8)}.` : `Denied: ${claim.reason}. Audited.`, status: claim.ok ? "done" : "error" });
+          let outbound: Outbound | null = null;
+          try { outbound = job?.draft.startsWith("{") ? (JSON.parse(job.draft) as Outbound) : null; } catch {}
+          const report = (o: Outbound, r: ExecRecord) => {
+            put({ id: "outbound", task: "Governed outbound (Swytchcode)", model: o.tool, provider: "router", why: `${r.status}: ${r.detail} · record ${r.idempotencyKey.slice(0, 10)}`, status: r.status === "sent" || r.status === "not_sent_export" ? "done" : "error" });
+            say("out", r.status === "sent" ? `Sent to ${o.to} (record ${r.idempotencyKey.slice(0, 10)}).`
+              : r.status === "unknown" ? `Delivery status **unknown** (record ${r.idempotencyKey.slice(0, 10)}). Not retried automatically; check before resending.`
+              : r.status === "not_sent_export" ? `**Ready to send.** Swytchcode delivery is not configured here, so copy this request to your landlord (record ${r.idempotencyKey.slice(0, 10)}).\n\n> **To:** ${o.to}\n> **Subject:** ${o.subject}\n\n${o.body}`
+              : `**Not sent:** ${r.detail}`);
+          };
+          if (outbound && job && !claim.ok && claim.reason === "already claimed") {
+            const existing = lookup(job.id, outbound);
+            if (existing) report(outbound, existing);
+            else say("dup", "Already approved; the single execution is in progress. Nothing will run twice.");
+            finish();
+            return;
+          }
+          if (outbound && job && claim.ok) {
+            report(outbound, await execute(job, outbound, claim.claimId));
+            const j = getJob(job.id) ?? job;
+            writer.write({ type: "data-job", id: "job", data: { jobId: j.id, jobToken: sealJob(j) } });
+            finish();
+            return;
+          }
           if (!claim.ok) {
             say("deny", claim.reason === "already claimed" ? "This request was already approved and drafted above. Nothing ran twice." : `**Not run.** The approval is no longer valid (${claim.reason}). Nothing was drafted or sent.`);
             finish();
@@ -293,7 +320,7 @@ export async function POST(req: Request) {
         await mini<{ v: string }>("check", "Cross-check safety", "Different model family audits the plan for unsafe or lease-violating steps.",
           `Audit this renter DIY repair plan. Reply ONLY JSON {"v":"PASS: reason" or "FLAG: reason"} (one line).\nPlan:\n${planText}`, { v: "" });
       }
-      writer.write({ type: "data-approval", id: "approval", data: approval("Want me to draft a repair request to your landlord instead? Nothing is sent automatically.", ctx.summary, { category: ctx.triage.category, hazard: false }) });
+      writer.write({ type: "data-approval", id: "approval", data: await approval("Want me to draft a repair request to your landlord instead? Nothing is sent automatically.", ctx.summary, { category: ctx.triage.category, hazard: false }) });
       save({ ...ctx, stage: "done", pending: [] });
       finish();
     },

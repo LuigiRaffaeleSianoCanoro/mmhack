@@ -32,7 +32,17 @@ export function ApprovalCard({
           <CardDescription>{request.reason}</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="rounded-md bg-background/60 p-2 font-mono text-xs text-muted-foreground whitespace-pre-wrap break-words max-h-40 overflow-y-auto">{request.prompt}</p>
+          {!request.outbound && <p className="rounded-md bg-background/60 p-2 font-mono text-xs text-muted-foreground whitespace-pre-wrap break-words max-h-40 overflow-y-auto">{request.prompt}</p>}
+          {request.outbound && (
+            <div className="mt-2 rounded-md border bg-background/60 p-2 text-xs">
+              <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                {request.outbound.mode === "swytchcode-dry-run" ? "Swytchcode dry-run preview" : "Preview / export only (Swytchcode not configured)"} · {request.outbound.tool}
+              </p>
+              <p className="mt-1"><b>To:</b> {request.outbound.to}</p>
+              <p><b>Subject:</b> {request.outbound.subject}</p>
+              <p className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap break-words text-muted-foreground">{request.outbound.body}</p>
+            </div>
+          )}
           {request.storeLabel && <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Audited job · {request.storeLabel}</p>}
         </CardContent>
         <CardFooter className="gap-2">

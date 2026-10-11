@@ -24,6 +24,8 @@ export type ApprovalRequest = {
   draftHash?: string;
   store?: "anbaric-cloud" | "local-fallback";
   storeLabel?: string;
+  /** AWS-55: side-effect-free preview of the one governed outbound action. */
+  outbound?: { to: string; subject: string; body: string; tool: string; mode: "swytchcode-dry-run" | "export-fallback"; note: string; idempotencyKey: string };
   /** Server-signed job snapshot so the audit survives serverless instance changes. */
   jobToken?: string;
 };

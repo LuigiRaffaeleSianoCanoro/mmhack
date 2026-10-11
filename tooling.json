@@ -1,0 +1,6 @@
+{
+  "$comment": "Swytchcode allow-list for FixIt (AWS-55). Exactly one outbound action. No secrets here: provider creds live in `swytchcode auth connect resend`.",
+  "mode": "sandbox",
+  "providers": ["Resend.resend@1.5.0"],
+  "tools": ["resend.emails.send"]
+}
