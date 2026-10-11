@@ -17,7 +17,7 @@ import { EvacCard } from "./evac-card";
 import { ProsCard } from "./pros-card";
 import { inferTrade, recommendsPro } from "@/lib/pros/shared";
 import { useAuth } from "@/components/fixit/auth";
-import { Markdown } from "./markdown";
+import { Markdown, dropEmptyItems } from "./markdown";
 import { Delayed, PacedText, isPacedDone, skipAll, stripMd } from "./pacing";
 import { Composer } from "./composer";
 import { TraceInline } from "./trace-inline";
@@ -227,7 +227,7 @@ export function Chat({ slug, profileUid, sessionId, initialMessages, onMessages,
                       return (
                         <div key={i} className="max-w-[85%]">
                           <PacedText id={key} text={head} finished={fin} enabled={on} onDone={() => bump((x) => x + 1)}>
-                            {() => more?.trim() && (
+                            {() => more && dropEmptyItems(more).trim() && (
                               <details className="mt-2 rounded-md border border-border bg-card/80 px-3 py-2 text-sm">
                                 <summary className="cursor-pointer text-mm-accent">Show details</summary>
                                 <div className="mt-2"><Markdown>{more}</Markdown></div>
@@ -349,8 +349,9 @@ function TraceFor({ m, steps }: { m: MMMessage; steps: TraceStep[] }) {
 function ProsFor({ m, messages, zip }: { m: MMMessage; messages: MMMessage[]; zip: string }) {
   const txt = (x: MMMessage) => x.parts.map((p) => (p.type === "text" ? p.text : "")).join(" ");
   const hazard = m.parts.some((p) => p.type === "data-trace" && p.data.id === "safety");
+  const forced = m.parts.some((p) => p.type === "data-pros");
   const reply = txt(m);
-  if (!hazard && !recommendsPro(reply)) return null;
+  if (!hazard && !forced && !recommendsPro(reply)) return null;
   const idx = messages.indexOf(m);
   const problem = [...messages.slice(0, idx)].reverse().find((x) => x.role === "user");
   const ask = problem ? txt(problem) : "";
