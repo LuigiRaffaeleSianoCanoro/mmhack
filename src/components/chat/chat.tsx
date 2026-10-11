@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { ApprovalCard } from "./approval-card";
 import { DeliverCard } from "./deliver-card";
 import { IllustrationCard } from "./illustration-card";
-import { EmailCard, useSent } from "./email-card";
+import { EmailCard, loadSent, useSent } from "./email-card";
+import { CtaCard } from "./cta-card";
 import { useAuth } from "@/components/fixit/auth";
 import { Markdown } from "./markdown";
 import { Composer } from "./composer";
@@ -20,6 +21,8 @@ import type { TraceStep } from "@/lib/trace";
 import { loadProfile, toServer } from "@/lib/profile";
 
 const DETAILS = "<!--details-->";
+const HINTS = "fixit.client";
+const readHints = () => { try { return JSON.parse(sessionStorage.getItem(HINTS) ?? "{}"); } catch { return {}; } };
 import type { MMMessage } from "@/lib/trace";
 import { cn } from "@/lib/utils";
 
@@ -30,12 +33,18 @@ export function Chat({ slug, profileUid, sessionId, initialMessages, onMessages,
   const [illus, setIllus] = useState<Record<string, TraceStep>>({});
   // Latest server-signed job snapshots (AWS-54), so audit state survives serverless instance changes.
   const [jobTokens, setJobTokens] = useState<Record<string, string>>({});
+  const auth = useAuth();
   const { messages, sendMessage, status, stop, error } = useChat<MMMessage>({
     id: sessionId ?? `mmhack-${slug}`,
     messages: initialMessages,
     // Profile is read at send time from this device (FixIt memory); the server strips it per step.
-    transport: new DefaultChatTransport({ api: assistant.api ?? "/api/chat", body: () => ({ assistant: slug, profile: profileUid ? toServer(loadProfile(profileUid)) : undefined }) }),
+    // client: hints for follow-up copy only (guest/Gmail/sent); the server never authorizes anything from them.
+    transport: new DefaultChatTransport({ api: assistant.api ?? "/api/chat", body: () => ({ assistant: slug, profile: profileUid ? toServer(loadProfile(profileUid)) : undefined, client: readHints() }) }),
   });
+  useEffect(() => {
+    const sent = loadSent(auth?.who.id ?? "guest");
+    try { sessionStorage.setItem(HINTS, JSON.stringify({ guest: auth?.who.guest ?? true, gmailEnabled: auth?.gmail.enabled ?? false, gmailConnected: auth?.gmail.connected ?? false, sent: messages.some((m) => sent[m.id]?.ok) })); } catch {}
+  }, [auth, messages]);
   const busy = status === "submitted" || status === "streaming";
   const mascotStateOf = (m: MMMessage): MascotState => {
     const last = m.id === messages.at(-1)?.id;
@@ -143,6 +152,9 @@ export function Chat({ slug, profileUid, sessionId, initialMessages, onMessages,
                         </div>
                       );
                     }
+                    if (p.type === "text" && m.metadata?.approval)
+                      return <span key={i} className="self-center rounded-full border border-emerald-500/40 px-3 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-emerald-400">✓ You approved the request</span>;
+                    if (p.type === "data-cta") return <CtaCard key={i} cta={p.data} />;
                     if (p.type === "text")
                       return (
                         <div key={i} className={cn("max-w-[85%] whitespace-pre-wrap text-[15px] leading-relaxed", m.role === "user" ? "rounded-2xl rounded-br-sm bg-secondary px-4 py-2.5" : "")}>
@@ -184,7 +196,7 @@ export function Chat({ slug, profileUid, sessionId, initialMessages, onMessages,
                                 setJobTokens((x) => ({ ...x, [jobId]: j.job!.jobToken! }));
                               }
                             }
-                            if (d === "approved") sendMessage({ text: p.data.prompt }, { body: { approved: true, jobId, draftHash, jobToken } });
+                            if (d === "approved") sendMessage({ text: "Approved", metadata: { approval: true } }, { body: { approved: true, jobId, draftHash, jobToken } });
                           }}
                         />
                       );

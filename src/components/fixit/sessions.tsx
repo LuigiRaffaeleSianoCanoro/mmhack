@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { LogOut, MessageSquare, PanelLeft, Plus, Trash2, UserRound } from "lucide-react";
 import { ProfileDialog } from "@/components/fixit/profile";
 import { loadProfile, markSkipped, wasSkipped, type Profile } from "@/lib/profile";
-import { useAuth } from "@/components/fixit/auth";
+import { CARRY_KEY, useAuth } from "@/components/fixit/auth";
 import { Chat } from "@/components/chat/chat";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -43,11 +43,22 @@ export function FixitSessions() {
   useEffect(() => {
     // Hydrate from localStorage after mount (client-only); scheduled to avoid a synchronous setState in the effect.
     const t = setTimeout(() => {
-      try { setSessions(JSON.parse(localStorage.getItem(KEY) ?? "[]")); } catch {}
+      let carried = "";
+      try {
+        let mine: Session[] = JSON.parse(localStorage.getItem(KEY) ?? "[]");
+        // AWS-68: a guest pressed "Sign in to send"; move that one chat (with its draft) into this user's history.
+        const carry = KEY !== BASE ? localStorage.getItem(CARRY_KEY) : null;
+        if (carry) {
+          const s = (JSON.parse(localStorage.getItem(BASE) ?? "[]") as Session[]).find((x) => x.id === carry);
+          if (s) { mine = [s, ...mine.filter((x) => x.id !== carry)]; localStorage.setItem(KEY, JSON.stringify(mine.slice(0, 30))); carried = carry; }
+          localStorage.removeItem(CARRY_KEY);
+        }
+        setSessions(mine);
+      } catch {}
       // Back from Composio's Gmail consent: reopen the chat the user was in.
       const back = new URLSearchParams(location.search).has("gmail") && sessionStorage.getItem("fixit.current");
       if (back) history.replaceState(null, "", location.pathname);
-      setCurrent(back || newId());
+      setCurrent(carried || back || newId());
       setReady(true);
     }, 0);
     return () => clearTimeout(t);
