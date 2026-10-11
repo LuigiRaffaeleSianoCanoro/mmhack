@@ -9,6 +9,7 @@ import { FileAudio } from "lucide-react";
 import { getAssistant } from "@/lib/assistants";
 import { Button } from "@/components/ui/button";
 import { ApprovalCard } from "./approval-card";
+import { IllustrationCard } from "./illustration-card";
 import { EmailCard } from "./email-card";
 import { Markdown } from "./markdown";
 import { Composer } from "./composer";
@@ -23,6 +24,7 @@ export function Chat({ slug, sessionId, initialMessages, onMessages, headerLeft 
   const assistant = getAssistant(slug)!;
   const reduce = useReducedMotion();
   const [decisions, setDecisions] = useState<Record<string, "approved" | "rejected">>({});
+  const [illus, setIllus] = useState<Record<string, TraceStep>>({});
   // Latest server-signed job snapshots (AWS-54), so audit state survives serverless instance changes.
   const [jobTokens, setJobTokens] = useState<Record<string, string>>({});
   const { messages, sendMessage, status, stop, error } = useChat<MMMessage>({
@@ -52,9 +54,10 @@ export function Chat({ slug, sessionId, initialMessages, onMessages, headerLeft 
 
   const stepsOf = (m: MMMessage): TraceStep[] => {
     const d = decisions[m.id];
-    return m.parts.flatMap((p) =>
+    const steps = m.parts.flatMap((p) =>
       p.type !== "data-trace" ? [] : p.data.status === "awaiting_approval" && d ? [{ ...p.data, status: d === "approved" ? ("done" as const) : ("skipped" as const), why: d === "approved" ? "Approved by a human." : "Rejected by a human. Nothing ran." }] : [p.data],
     );
+    return illus[m.id] ? [...steps, illus[m.id]] : steps;
   };
   const sessionCost = messages.reduce((a, m) => a + stepsOf(m).reduce((b, s) => b + (s.costUsd ?? 0), 0), 0);
 
@@ -149,6 +152,8 @@ export function Chat({ slug, sessionId, initialMessages, onMessages, headerLeft 
                       ) : (
                         <span key={i} className="flex items-center gap-1.5 rounded-md bg-secondary px-2 py-1 text-xs"><FileAudio className="size-3.5" />{p.filename ?? p.mediaType}</span>
                       );
+                    if (p.type === "data-illustration")
+                      return <IllustrationCard key={i} request={p.data} onTrace={(st) => setIllus((x) => ({ ...x, [m.id]: st }))} />;
                     if (p.type === "data-approval")
                       return (
                         <ApprovalCard

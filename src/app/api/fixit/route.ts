@@ -7,6 +7,7 @@ import type { ApprovalRequest, FixitCtx, MMMessage, TraceStep } from "@/lib/trac
 import { claimExecution, createJob, finish as finishJob, releaseClaim, getJob, sealJob, STORE_KIND, STORE_LABEL, transition, type FixitJob } from "@/lib/jobs/store";
 import { readSession, sessionHeader } from "@/lib/jobs/session";
 import { actor } from "@/lib/jobs/workflow";
+import { IMAGE_MODEL, normalizeCategory } from "@/lib/illustration";
 import { buildOutbound, canonical, execute, lookup, preview, type ExecRecord, type Outbound } from "@/lib/actions/governed";
 
 export const maxDuration = 120;
@@ -322,6 +323,15 @@ export async function POST(req: Request) {
       if (planText) {
         await mini<{ v: string }>("check", "Cross-check safety", "Different model family audits the plan for unsafe or lease-violating steps.",
           `Audit this renter DIY repair plan. Reply ONLY JSON {"v":"PASS: reason" or "FLAG: reason"} (one line).\nPlan:\n${planText}`, { v: "" });
+      }
+      // AWS-60: optional illustration, generated async by the client after the plan; never for hazards or photo-less cases.
+      if (planText) {
+        const category = normalizeCategory(ctx.triage.category);
+        const sample = messages.some((m) => m.parts.some((p) => p.type === "file" && p.filename === "faucet.jpg"));
+        const hasPhoto = messages.some((m) => m.parts.some((p) => p.type === "file" && p.mediaType.startsWith("image/")));
+        if (category === "gas" || category === "electrical" || ctx.triage.hazard || !hasPhoto)
+          put({ id: "illustrate", task: "Repair illustration", model: IMAGE_MODEL, provider: "neon-gateway", why: !hasPhoto ? "Skipped: no photo, so the case is too uncertain to illustrate." : "Skipped: hazardous category.", status: "skipped" });
+        else writer.write({ type: "data-illustration", id: "illustration", data: { id: "illustration", category, summary: ctx.summary.slice(0, 300), mode: sample ? "sample" : "live" } });
       }
       writer.write({ type: "data-approval", id: "approval", data: await approval("Want me to draft a repair request to your landlord instead? Nothing is sent automatically.", ctx.summary, { category: ctx.triage.category, hazard: false }) });
       save({ ...ctx, stage: "done", pending: [] });
