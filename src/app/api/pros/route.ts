@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { addPro, matchPros } from "@/lib/pros/store";
 import { TRADES, type Trade } from "@/lib/pros/shared";
 
-export const runtime = "nodejs";
-
 export async function GET(req: Request) {
   const u = new URL(req.url);
   const t = TRADES.find((x) => x.toLowerCase() === (u.searchParams.get("trade") ?? "").toLowerCase()) ?? ("general" as Trade);
