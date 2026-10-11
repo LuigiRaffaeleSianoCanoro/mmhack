@@ -14,6 +14,8 @@ import { IllustrationCard } from "./illustration-card";
 import { EmailCard, loadSent, useSent } from "./email-card";
 import { CtaCard } from "./cta-card";
 import { EvacCard } from "./evac-card";
+import { ProsCard } from "./pros-card";
+import { inferTrade, recommendsPro } from "@/lib/pros/shared";
 import { useAuth } from "@/components/fixit/auth";
 import { Markdown } from "./markdown";
 import { Composer } from "./composer";
@@ -113,7 +115,9 @@ export function Chat({ slug, profileUid, sessionId, initialMessages, onMessages,
             Fix<span className="text-mm-accent">It</span>
           </span>
         </Link>
-        <span className="ml-auto font-mono text-[10px] text-muted-foreground" title="Session model cost (estimate)">session ${sessionCost.toFixed(3)}</span>
+        <Link href="/pricing" className="ml-auto text-xs text-muted-foreground hover:text-foreground">Pricing</Link>
+        <Link href="/pros" className="hidden text-xs text-muted-foreground hover:text-foreground sm:inline">For pros</Link>
+        <span className="font-mono text-[10px] text-muted-foreground" title="Session model cost (estimate)">session ${sessionCost.toFixed(3)}</span>
       </header>
 
       <div className="flex min-h-0 flex-1">
@@ -246,6 +250,7 @@ export function Chat({ slug, profileUid, sessionId, initialMessages, onMessages,
                     return null;
                   })}
                   {m.role === "assistant" && <TraceFor m={m} steps={stepsOf(m)} />}
+                  {m.role === "assistant" && !(busy && m.id === messages.at(-1)?.id) && pace?.id !== m.id && <ProsFor m={m} messages={messages} zip={profileUid ? loadProfile(profileUid)?.zip ?? "" : ""} />}
                   {m.role === "assistant" && busy && m.id === messages.at(-1)?.id && !m.parts.some((p) => p.type === "text") && !m.parts.some((p) => p.type === "data-approval") && (
                     <span className="h-4 w-16 animate-pulse rounded bg-muted" />
                   )}
@@ -276,4 +281,16 @@ function TraceFor({ m, steps }: { m: MMMessage; steps: TraceStep[] }) {
   const auth = useAuth();
   const sent = useSent(m.id, auth?.who.id ?? "guest");
   return <TraceInline steps={steps} sent={m.parts.some((p) => p.type === "data-email") ? sent : undefined} />;
+}
+
+// Recommended pros: only when the plan says to call a professional, or after a safety stop.
+function ProsFor({ m, messages, zip }: { m: MMMessage; messages: MMMessage[]; zip: string }) {
+  const txt = (x: MMMessage) => x.parts.map((p) => (p.type === "text" ? p.text : "")).join(" ");
+  const hazard = m.parts.some((p) => p.type === "data-trace" && p.data.id === "safety");
+  const reply = txt(m);
+  if (!hazard && !recommendsPro(reply)) return null;
+  const idx = messages.indexOf(m);
+  const problem = [...messages.slice(0, idx)].reverse().find((x) => x.role === "user");
+  const ask = problem ? txt(problem) : "";
+  return <ProsCard trade={inferTrade(`${ask} ${reply}`)} zip={zip} problem={ask || "See the FixIt summary."} hazard={hazard} />;
 }
