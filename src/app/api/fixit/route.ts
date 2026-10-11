@@ -176,11 +176,11 @@ export async function POST(req: Request) {
           try { const d = job?.draft.startsWith("{") ? (JSON.parse(job.draft) as Outbound) : null; outbound = d && (d.mode === "send" || d.mode === "export") && typeof d.body === "string" ? d : null; } catch {}
           const report = (o: Outbound, r: ExecRecord) => {
             put({ id: "outbound", task: "Governed outbound (Swytchcode)", model: o.tool, provider: "router", why: `${r.status}: ${r.detail} · record ${r.idempotencyKey.slice(0, 10)}`, status: r.status === "sent" || r.status === "not_sent_export" || r.status === "in_flight" ? "done" : "error" });
-            say("out", r.status === "sent" ? `Sent to ${o.to} (record ${r.idempotencyKey.slice(0, 10)}).`
-              : r.status === "unknown" ? `Delivery status **unknown** (record ${r.idempotencyKey.slice(0, 10)}). Not retried automatically; check before resending.`
-              : r.status === "in_flight" ? "Already approved; the single send is in progress. Nothing will run twice."
-              : r.status === "not_sent_export" ? `**Ready to send.** Here is your request (record ${r.idempotencyKey.slice(0, 10)}). Copy it to your landlord, or sign in to send it from your Gmail.\n\n**Subject:** ${o.subject}\n\n\`\`\`text\n${o.body}\n\`\`\``
-              : `**Not sent:** ${r.detail}`);
+            say("out", r.status === "sent" ? `Sent to your landlord at ${o.to}.`
+              : r.status === "unknown" ? "We couldn't confirm delivery yet. We won't resend automatically, so check before sending again."
+              : r.status === "in_flight" ? "Already approved; it's being sent once. Nothing will be sent twice."
+              : r.status === "not_sent_export" ? `**Ready to send.** Copy this to your landlord, or send it from your Gmail (sign-in needed). Nothing was sent automatically.\n\n**Subject:** ${o.subject}\n\n${o.body.split("\n").map((l) => `> ${l}`).join("\n")}`
+              : "**Not sent.** Delivery isn't available right now, and nothing was sent.");
             if (r.status === "not_sent_export") {
               writer.write({ type: "data-email", id: "email", data: { subject: o.subject, body: o.body } });
               // AWS-59: offer Base44 Landlord Inbox delivery only when it is actually configured (no dead card otherwise).
