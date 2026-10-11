@@ -1,5 +1,10 @@
+import { AuthGate } from "@/components/fixit/auth";
 import { FixitSessions } from "@/components/fixit/sessions";
 
 export default function Page() {
-  return <FixitSessions />;
+  return (
+    <AuthGate>
+      <FixitSessions />
+    </AuthGate>
+  );
 }

@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { MessageSquare, PanelLeft, Plus, Trash2 } from "lucide-react";
+import { LogOut, MessageSquare, PanelLeft, Plus, Trash2 } from "lucide-react";
+import { useAuth } from "@/components/fixit/auth";
 import { Chat } from "@/components/chat/chat";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -8,7 +9,7 @@ import type { MMMessage } from "@/lib/trace";
 import { cn } from "@/lib/utils";
 
 type Session = { id: string; title: string; updatedAt: number; messages: MMMessage[] };
-const KEY = "fixit.sessions.v1";
+const BASE = "fixit.sessions.v1";
 const newId = () => `s-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 const titleOf = (m: MMMessage[]) => {
   const t = m.find((x) => x.role === "user")?.parts.map((p) => (p.type === "text" ? p.text : "")).join(" ").trim() || "Photo report";
@@ -18,6 +19,9 @@ const titleOf = (m: MMMessage[]) => {
 const slim = (m: MMMessage[]) => m.map((x) => ({ ...x, parts: x.parts.map((p) => (p.type === "file" && p.url.startsWith("data:") && p.url.length > 200_000 ? { ...p, url: "" } : p)) })) as MMMessage[];
 
 export function FixitSessions() {
+  const auth = useAuth();
+  // History is per user id; guests keep the original key so existing local history survives.
+  const KEY = !auth || auth.who.guest ? BASE : `${BASE}.${auth.who.id}`;
   const [sessions, setSessions] = useState<Session[]>([]);
   const [current, setCurrent] = useState<string>("");
   const [collapsed, setCollapsed] = useState(false);
@@ -26,11 +30,14 @@ export function FixitSessions() {
     // Hydrate from localStorage after mount (client-only); scheduled to avoid a synchronous setState in the effect.
     const t = setTimeout(() => {
       try { setSessions(JSON.parse(localStorage.getItem(KEY) ?? "[]")); } catch {}
-      setCurrent(newId());
+      // Back from Composio's Gmail consent: reopen the chat the user was in.
+      const back = new URLSearchParams(location.search).has("gmail") && sessionStorage.getItem("fixit.current");
+      if (back) history.replaceState(null, "", location.pathname);
+      setCurrent(back || newId());
       setReady(true);
     }, 0);
     return () => clearTimeout(t);
-  }, []);
+  }, [KEY]);
   const persist = (s: Session[]) => {
     setSessions(s);
     try { localStorage.setItem(KEY, JSON.stringify(s.slice(0, 30))); } catch {}
@@ -43,7 +50,8 @@ export function FixitSessions() {
       try { localStorage.setItem(KEY, JSON.stringify(next.slice(0, 30))); } catch {}
       return next;
     });
-  }, [current]);
+  }, [current, KEY]);
+  useEffect(() => { if (current) sessionStorage.setItem("fixit.current", current); }, [current]);
   const active = sessions.find((s) => s.id === current);
 
   const list = (
@@ -61,6 +69,12 @@ export function FixitSessions() {
           </li>
         ))}
       </ul>
+      {auth && (
+        <div className="flex items-center gap-2 border-t border-border pt-2 text-xs text-muted-foreground">
+          <span className="min-w-0 flex-1 truncate" title={auth.who.email}>{auth.who.guest ? "Guest" : auth.who.name}{!auth.who.guest && (auth.gmail.connected ? " · Gmail connected" : " · Gmail not connected")}</span>
+          <button type="button" onClick={auth.signOut} className="flex items-center gap-1 rounded px-1.5 py-1 hover:bg-secondary hover:text-foreground"><LogOut className="size-3.5" />{auth.who.guest ? "Sign in" : "Sign out"}</button>
+        </div>
+      )}
     </nav>
   );
 

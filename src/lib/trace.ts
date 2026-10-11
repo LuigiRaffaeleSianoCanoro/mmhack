@@ -32,5 +32,5 @@ export type FixitCtx = {
 
 export type MMMessage = UIMessage<
   never,
-  { trace: TraceStep; approval: ApprovalRequest; chips: { options: string[] }; ctx: FixitCtx }
+  { trace: TraceStep; approval: ApprovalRequest; chips: { options: string[] }; ctx: FixitCtx; email: { subject: string } }
 >;

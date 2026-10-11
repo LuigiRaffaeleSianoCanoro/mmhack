@@ -124,10 +124,11 @@ export async function POST(req: Request) {
 
       // Approved: draft landlord request.
       if (approved) {
-        put({ id: "safety", task: "Approval", model: "you", provider: "human", why: "Approved: drafting landlord request only. Nothing is sent.", status: "done" });
+        put({ id: "safety", task: "Approval", model: "you", provider: "human", why: "Approved: drafting landlord request. Signed-in users can preview and send it from their own Gmail; guests get the draft only.", status: "done" });
         await sonnet("Draft landlord request", "Approved: write a clear, urgent repair request.",
           `Draft a short, firm, polite repair request from a renter to a landlord in ${lang}: issue, any safety risk, ask for a licensed pro soon, availability placeholder. Under 120 words.`,
           `Issue: ${ctx?.summary ?? text}\nConversation:\n${transcript}`);
+        writer.write({ type: "data-email", id: "email", data: { subject: `Repair request: ${(ctx?.summary ?? text).slice(0, 80)}` } });
         finish();
         return;
       }

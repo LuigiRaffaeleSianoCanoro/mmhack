@@ -9,6 +9,7 @@ import { FileAudio } from "lucide-react";
 import { getAssistant } from "@/lib/assistants";
 import { Button } from "@/components/ui/button";
 import { ApprovalCard } from "./approval-card";
+import { EmailCard } from "./email-card";
 import { Markdown } from "./markdown";
 import { Composer } from "./composer";
 import { TraceInline } from "./trace-inline";
@@ -154,6 +155,8 @@ export function Chat({ slug, sessionId, initialMessages, onMessages, headerLeft 
                           }}
                         />
                       );
+                    if (p.type === "data-email")
+                      return <EmailCard key={i} sendKey={m.id} subject={p.data.subject} draft={m.parts.map((x) => (x.type === "text" ? x.text : "")).join("\n").split(DETAILS)[0]} />;
                     if (p.type === "data-chips")
                       return m.id === messages.at(-1)?.id && !busy ? (
                         <div key={i} className="flex flex-wrap gap-2">
