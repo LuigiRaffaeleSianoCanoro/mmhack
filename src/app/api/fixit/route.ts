@@ -2,6 +2,7 @@ import { createUIMessageStream, createUIMessageStreamResponse, generateText, str
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { estimateCost } from "@/lib/router";
+import { jevEnabled, jevTriage, JEV_MODEL } from "@/lib/jev";
 import type { FixitCtx, MMMessage, TraceStep } from "@/lib/trace";
 
 export const maxDuration = 120;
@@ -137,7 +138,6 @@ export async function POST(req: Request) {
       // Turn 1: triage + vision in parallel, then a one-line confirmation.
       if (!ctx) {
         const tri: TraceStep = { id: "triage", task: "Triage the problem", model: "gpt-5-mini", provider: "neon-gateway", why: "Short structured classification: smallest reliable model.", status: "running" };
-        put(tri);
         const vis: TraceStep = { id: "vision", task: "Inspect the photo", model: "gpt-5", provider: "neon-gateway", why: "Photo attached: strong vision model reads fixture, damage, likely failed part.", status: "running" };
         const t0 = performance.now();
         const visionP = images.length
@@ -145,7 +145,24 @@ export async function POST(req: Request) {
           : null;
         visionP?.catch(() => {});
         let triage: Triage & { lang?: string } = { category: "general", urgency: "medium", hazard: false, summary: text };
-        try {
+        // Optional raw Jev (TypeSafe) first when flagged on; any failure falls back to gpt-5-mini.
+        let jevDone = false;
+        if (jevEnabled()) {
+          const js: TraceStep = { id: "triage", task: "Triage the problem", model: JEV_MODEL, provider: "typesafe", why: "Jev flag on: TypeSafe SystemOne classifies with calibrated probabilities.", status: "running" };
+          put(js);
+          const tj = performance.now();
+          try {
+            const j = await jevTriage(text, images.length > 0);
+            triage = { ...triage, ...j.triage, lang: "the user's language" };
+            jevDone = true;
+            put({ ...js, model: j.model, status: "done", latencyMs: j.latencyMs, tokens: j.usage, costUsd: undefined,
+              why: `Raw Jev (${j.model}), measured ${j.latencyMs} ms. Result: ${triage.category}, ${triage.urgency}${triage.hazard ? ", HAZARD" : ""}; confidence ${j.confidence.toFixed(2)}, P(hazard) ${j.hazardP.toFixed(2)}. Cost unknown.` });
+          } catch (e) {
+            put({ ...js, status: "error", latencyMs: Math.round(performance.now() - tj), why: `Jev unusable (${reasonOf(e)}); falling back to gpt-5-mini.` });
+          }
+        }
+        if (!jevDone) try {
+          put(tri);
           const r = await generateText({
             model: gateway.chat("gpt-5-mini"),
             providerOptions: MINI,
@@ -163,6 +180,8 @@ export async function POST(req: Request) {
             const r = await visionP;
             observed = r.text;
             done(vis, t0, r.usage);
+            // Post-vision hazard stop: the photo itself can reveal a hazard the text did not mention.
+            if (HAZARD.test(observed)) return safetyStop(/gas/i.test(observed) ? "gas" : /spark|wire|shock/i.test(observed) ? "electrical" : triage.category || "hazard");
           } catch (e) {
             fail(vis, t0, e);
           }
