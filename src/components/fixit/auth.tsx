@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Mascot } from "@/components/fixit/mascot";
 
 export type Who = { id: string; name: string; email: string; guest: boolean };
-type Gmail = { enabled: boolean; connected: boolean };
+type Gmail = { enabled: boolean; connected: boolean; email?: string };
 type Ctx = { who: Who; gmail: Gmail; refreshGmail: () => Promise<void>; signOut: () => Promise<void>; signIn: () => void };
 const AuthCtx = createContext<Ctx | null>(null);
 export const useAuth = () => useContext(AuthCtx);

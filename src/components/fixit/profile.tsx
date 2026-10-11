@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
-import { Lock, X } from "lucide-react";
+import { CheckCircle2, Lock, Mail, X } from "lucide-react";
+import { useAuth } from "@/components/fixit/auth";
 import { Button } from "@/components/ui/button";
 import { Mascot } from "@/components/fixit/mascot";
 import { EMPTY_PROFILE, clearProfile, sanitize, saveProfile, type Profile } from "@/lib/profile";
@@ -54,6 +55,7 @@ export function ProfileDialog({ uid, guest, initial, first, onClose }: { uid: st
             <input className={field} type="tel" placeholder="Phone" value={p.landlordPhone} onChange={set("landlordPhone")} aria-label="Landlord phone" />
           </fieldset>
         )}
+        <GmailSection guest={guest} label={label} />
         <fieldset className="grid gap-2">
           <legend className={cn(label, "mb-1")}>You</legend>
           <input className={field} type="tel" placeholder="Your phone (so your landlord can reach you)" value={p.phone} onChange={set("phone")} autoComplete="tel" aria-label="Your phone" />
@@ -68,5 +70,45 @@ export function ProfileDialog({ uid, guest, initial, first, onClose }: { uid: st
         </div>
       </form>
     </div>
+  );
+}
+
+// AWS-72: Connect Gmail (Composio) from the profile. Once connected, approved requests send from this address.
+function GmailSection({ guest, label }: { guest: boolean; label: string }) {
+  const auth = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  if (!auth) return null;
+  const { gmail } = auth;
+  const post = async (action: "connect" | "disconnect") => {
+    setBusy(true); setErr("");
+    try {
+      const j = await (await fetch("/api/gmail", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action }) })).json();
+      if (action === "connect") { if (j.redirectUrl) { window.location.href = j.redirectUrl; return; } setErr(j.error ?? "Could not start Gmail connect."); }
+      else { if (!j.ok) setErr(j.error ?? "Could not disconnect."); await auth.refreshGmail(); }
+    } catch { setErr("Network error. Try again."); } finally { setBusy(false); }
+  };
+  return (
+    <fieldset className="grid gap-2" aria-live="polite">
+      <legend className={cn(label, "mb-1")}>Send from Gmail</legend>
+      {guest ? (
+        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground"><Mail className="size-4" />Sign in to connect Gmail and send requests from your own address.
+          <Button type="button" size="sm" variant="outline" onClick={() => auth.signIn()}>Sign in</Button></div>
+      ) : !gmail.enabled ? (
+        <p className="text-sm text-muted-foreground">Gmail sending isn&apos;t set up on this deployment.</p>
+      ) : gmail.connected ? (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="flex items-center gap-1.5 text-emerald-400"><CheckCircle2 className="size-4" />Connected{gmail.email ? `: ${gmail.email}` : ""}</span>
+          <span className="text-xs text-muted-foreground">Approved requests send from this Gmail, once.</span>
+          <Button type="button" size="sm" variant="ghost" disabled={busy} className="ml-auto" onClick={() => post("disconnect")}>{busy ? "…" : "Disconnect"}</Button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-muted-foreground">Not connected</span>
+          <Button type="button" size="sm" className="gap-2" disabled={busy} onClick={() => post("connect")}><Mail className="size-4" />{busy ? "Opening Google…" : "Connect Gmail"}</Button>
+        </div>
+      )}
+      {err && <p role="alert" className="text-sm text-destructive">{err}</p>}
+    </fieldset>
   );
 }
