@@ -1,5 +1,4 @@
 import { createOpenAI } from "@ai-sdk/openai";
-import { createAnthropic } from "@ai-sdk/anthropic";
 import type { LanguageModel } from "ai";
 
 /** USD per token, from the Neon AI Gateway /v1/models listing (Oct 2026). */
@@ -9,7 +8,6 @@ const PRICING: Record<string, [number, number]> = {
   "gemini-3-1-flash-lite": [0.00000025, 0.0000015],
   "gemini-3-flash": [0.0000005, 0.000003],
   "gpt-5-4-mini": [0.00000075, 0.0000045],
-  "claude-sonnet-5-5": [0.000002, 0.00001],
   "claude-sonnet-5": [0.000002, 0.00001],
 };
 
@@ -20,7 +18,7 @@ export function estimateCost(model: string, input: number, output: number) {
 
 export type Route = {
   model: string;
-  provider: "neon-gateway" | "anthropic";
+  provider: "neon-gateway";
   task: string;
   why: string;
 };
@@ -41,20 +39,16 @@ export function needsApproval(text: string): { action: string; reason: string } 
 
 /** Stub router: deterministic rules, cheapest capable model first. Swap for a learned router later. */
 export function route({ text, hasImage, hasAudio, prefer }: RouteInput): Route {
-  const anthropic = !!process.env.ANTHROPIC_API_KEY;
   if (hasAudio)
     return { model: "gemini-3-flash", provider: "neon-gateway", task: "Understand audio", why: "Audio attached: needs a native audio-input model. Gemini Flash is the cheapest one on the gateway." };
   if (hasImage)
     return { model: "gpt-5-4-mini", provider: "neon-gateway", task: "Describe image", why: "Image attached: a small vision model is enough and keeps cost low." };
   if (prefer !== "fast" && (prefer === "reason" || REASONING.test(text) || text.length > 600))
-    return anthropic
-      ? { model: "claude-sonnet-5-5", provider: "anthropic", task: "Reason", why: prefer === "reason" ? "This assistant leans on reasoning: route to the strongest mid-tier reasoner." : "Reasoning or code intent detected: route to the strongest mid-tier reasoner." }
-      : { model: "claude-sonnet-5", provider: "neon-gateway", task: "Reason", why: "Reasoning intent detected; Anthropic key absent, so use Claude via the gateway." };
+    return { model: "claude-sonnet-5", provider: "neon-gateway", task: "Reason", why: prefer === "reason" ? "This assistant leans on reasoning: route to the strongest mid-tier reasoner on the gateway." : "Reasoning or code intent detected: route to the strongest mid-tier reasoner on the gateway." };
   return { model: "gemini-3-1-flash-lite", provider: "neon-gateway", task: "Answer", why: "Short general prompt: fastest, cheapest model wins." };
 }
 
 export function modelFor(r: Route): LanguageModel {
-  if (r.provider === "anthropic") return createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY })(r.model);
   const gateway = createOpenAI({
     baseURL: `${(process.env.NEON_AI_GATEWAY_BASE_URL ?? "").replace(/\/$/, "")}/v1`,
     apiKey: process.env.NEON_AI_GATEWAY_TOKEN,

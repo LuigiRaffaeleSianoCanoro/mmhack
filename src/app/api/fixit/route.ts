@@ -1,6 +1,5 @@
 import { createUIMessageStream, createUIMessageStreamResponse, generateText, streamText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
-import { createAnthropic } from "@ai-sdk/anthropic";
 import { estimateCost } from "@/lib/router";
 import { jevEnabled, jevTriage, JEV_MODEL } from "@/lib/jev";
 import type { ApprovalRequest, FixitCtx, MMMessage, TraceStep } from "@/lib/trace";
@@ -19,7 +18,6 @@ const gateway = createOpenAI({
   apiKey: process.env.NEON_AI_GATEWAY_TOKEN,
   name: "neon-gateway",
 });
-const anthropic = createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const HAZARD = /\b(gas|spark|sparking|sparks|burning|smoke|shock|exposed wire|carbon monoxide|flood(ing)?|sewage|sagging|chispa|humo|olor a gas|fuga de gas|cortocircuito)\b/i;
 const DETAILS = "<!--details-->";
@@ -120,20 +118,20 @@ export async function POST(req: Request) {
         if (err || !out) throw err ?? new Error("empty response");
         return { out, usage: await Promise.resolve(r.totalUsage).catch((): Usage => ({})) };
       };
-      // Sonnet first, gpt-5 on the gateway if Claude fails or times out.
+      // All models go through the Neon AI Gateway (ADR-002). Plan: claude-sonnet-5; if it errors, the router retries on gpt-5.
       const sonnet = async (task: string, why: string, system: string, prompt: string) => {
-        const s: TraceStep = { id: "plan", task, model: "claude-sonnet-5-5", provider: "anthropic", why, status: "running" };
+        const s: TraceStep = { id: "plan", task, model: "claude-sonnet-5", provider: "neon-gateway", why, status: "running" };
         put(s);
         let t = performance.now();
         try {
-          const r = await runText(anthropic("claude-sonnet-5-5"), "plan", 45_000, system, prompt);
+          const r = await runText(gateway.chat("claude-sonnet-5"), "plan", 45_000, system, prompt);
           done(s, t, r.usage);
           return r.out;
         } catch (e) {
           const reason = reasonOf(e);
-          console.error("[fixit] claude failed:", reason, (e as { responseBody?: string })?.responseBody?.slice(0, 500));
-          put({ ...s, status: "error", latencyMs: Math.round(performance.now() - t), why: `Claude failed: ${reason}` });
-          const fb: TraceStep = { ...s, id: "plan-fallback", model: "gpt-5", provider: "neon-gateway", why: `fallback: gpt-5, reason: ${reason}`, status: "running" };
+          console.error("[fixit] plan model failed:", reason, (e as { responseBody?: string })?.responseBody?.slice(0, 500));
+          put({ ...s, status: "error", latencyMs: Math.round(performance.now() - t), why: `claude-sonnet-5 failed: ${reason}` });
+          const fb: TraceStep = { ...s, id: "plan-fallback", model: "gpt-5", provider: "neon-gateway", why: `Router retry on gpt-5 (same gateway) because claude-sonnet-5 failed: ${reason}`, status: "running" };
           put(fb);
           t = performance.now();
           try {
@@ -141,8 +139,8 @@ export async function POST(req: Request) {
             done(fb, t, r.usage);
             return r.out;
           } catch (e2) {
-            console.error("[fixit] fallback failed:", reasonOf(e2));
-            put({ ...fb, status: "error", latencyMs: Math.round(performance.now() - t), why: `fallback: gpt-5 also failed: ${reasonOf(e2)}` });
+            console.error("[fixit] retry failed:", reasonOf(e2));
+            put({ ...fb, status: "error", latencyMs: Math.round(performance.now() - t), why: `gpt-5 retry also failed: ${reasonOf(e2)}` });
             return "";
           }
         }
@@ -210,7 +208,7 @@ export async function POST(req: Request) {
         writer.write({ type: "data-email", id: "email", data: { subject: `Repair request: ${(job?.draft ?? text).slice(0, 80)}` } });
         if (job) {
           const j = getJob(job.id) ?? job;
-          if (draft) finishJob(j, actor.agent("plan-model"), { result: "landlord request drafted", chars: draft.length });
+          if (draft) finishJob(j, actor.agent("claude-sonnet-5"), { result: "landlord request drafted", chars: draft.length });
           else releaseClaim(j, actor.code("execution-gate"), "draft model failed");
           writer.write({ type: "data-job", id: "job", data: { jobId: j.id, jobToken: sealJob(j) } });
         }
@@ -325,7 +323,7 @@ export async function POST(req: Request) {
         return;
       }
 
-      // Turn 3: concise plan (Sonnet, gpt-5 fallback), then cross-check and landlord option.
+      // Turn 3: concise plan (claude-sonnet-5 via gateway, gpt-5 retry), then cross-check and landlord option.
       const planText = await sonnet("Write the repair plan", "Safety-aware step-by-step planning needs the strongest reasoner.",
         `You are FixIt, a renter repair assistant. Write in ${ctx.lang}. Format exactly:\n1 short sentence with the likely cause.\n**Tools:** comma list.\nUp to 5 numbered steps, each under 15 words.\nOne line: when to call the landlord.\nThen a line containing only ${DETAILS} followed by a longer detailed version (safety notes, lease limits, troubleshooting).`,
         `Issue: ${ctx.summary}\nPhoto analysis: ${ctx.observed || "none"}\nTriage: ${JSON.stringify(ctx.triage)}\nConversation:\n${transcript}`);

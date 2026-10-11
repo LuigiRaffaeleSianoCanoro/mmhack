@@ -6,8 +6,8 @@ import type { TraceStep } from "@/lib/trace";
 import { whyLink } from "@/lib/adr";
 import { cn } from "@/lib/utils";
 
-const LABEL: Record<string, string> = { illustrate: "Illustration", gate: "Gate", outbound: "Outbound", triage: "Triaged", vision: "Photo", confirm: "Confirmed", understand: "Understood", plan: "Plan", "plan-fallback": "Fallback", check: "Checked", followup: "Answered", safety: "Safety", ask: "Asked" };
-const short = (m: string) => m.replace("claude-sonnet-5-5", "Sonnet");
+const LABEL: Record<string, string> = { illustrate: "Illustration", gate: "Gate", outbound: "Outbound", triage: "Triaged", vision: "Photo", confirm: "Confirmed", understand: "Understood", plan: "Plan", "plan-fallback": "Retry", check: "Checked", followup: "Answered", safety: "Safety", ask: "Asked" };
+const short = (m: string) => m.replace("claude-sonnet-5", "Sonnet 5");
 const fmtMs = (ms?: number) => (ms == null ? "…" : ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`);
 const fmtUsd = (c?: number) => (c == null ? "n/a" : c < 0.001 ? "<$0.001" : `$${c.toFixed(3)}`);
 
@@ -56,7 +56,7 @@ export function TraceInline({ steps }: { steps: TraceStep[] }) {
       {failed.map((s) => (
         <Tooltip key={s.id}>
           <TooltipTrigger render={<button type="button" onClick={() => setTapped(tapped === s.id ? null : s.id)} className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[11px] text-amber-200" />}>
-            <TriangleAlert className="size-3" /> {short(s.model)} failed{steps.some((x) => x.id === "plan-fallback") && s.id === "plan" ? " → fallback gpt-5" : ""}
+            <TriangleAlert className="size-3" /> {short(s.model)} failed{steps.some((x) => x.id === "plan-fallback") && s.id === "plan" ? " → retry gpt-5" : ""}
           </TooltipTrigger>
           <TooltipContent className="max-w-xs">{s.why}</TooltipContent>
         </Tooltip>
