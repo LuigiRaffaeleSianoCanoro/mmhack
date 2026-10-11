@@ -6,7 +6,7 @@ import type { TraceStep } from "@/lib/trace";
 import { whyLink } from "@/lib/adr";
 import { cn } from "@/lib/utils";
 
-const LABEL: Record<string, string> = { triage: "Triaged", vision: "Photo", confirm: "Confirmed", understand: "Understood", plan: "Plan", "plan-fallback": "Fallback", check: "Checked", followup: "Answered", safety: "Safety", ask: "Asked" };
+const LABEL: Record<string, string> = { illustrate: "Illustration", gate: "Gate", outbound: "Outbound", triage: "Triaged", vision: "Photo", confirm: "Confirmed", understand: "Understood", plan: "Plan", "plan-fallback": "Fallback", check: "Checked", followup: "Answered", safety: "Safety", ask: "Asked" };
 const short = (m: string) => m.replace("claude-sonnet-5-5", "Sonnet");
 const fmtMs = (ms?: number) => (ms == null ? "…" : ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`);
 const fmtUsd = (c?: number) => (c == null ? "n/a" : c < 0.001 ? "<$0.001" : `$${c.toFixed(3)}`);
@@ -33,7 +33,7 @@ export function TraceInline({ steps }: { steps: TraceStep[] }) {
   const failed = steps.filter((s) => s.status === "error");
   const details = {
     latency: steps.map((s) => `${LABEL[s.id] ?? s.task}: ${fmtMs(s.latencyMs)}`).join("\n"),
-    cost: steps.map((s) => `${short(s.model)}: ${fmtUsd(s.costUsd)}${s.tokens ? ` (${s.tokens.input}→${s.tokens.output} tok)` : ""}`).join("\n"),
+    cost: steps.map((s) => `${short(s.model)}: ${s.costUnknown ? "unknown" : fmtUsd(s.costUsd)}${s.tokens ? ` (${s.tokens.input}→${s.tokens.output} tok)` : ""}`).join("\n"),
     via: steps.map((s) => `${short(s.model)} via ${s.provider}`).join("\n"),
     why: steps.map((s) => `${LABEL[s.id] ?? s.task}: ${s.why}`).join("\n"),
   };

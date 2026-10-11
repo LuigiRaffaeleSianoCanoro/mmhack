@@ -1,4 +1,5 @@
 import type { UIMessage } from "ai";
+import type { IllustrationRequest } from "./illustration";
 
 export type StepStatus = "running" | "done" | "error" | "awaiting_approval" | "skipped";
 
@@ -12,6 +13,8 @@ export type TraceStep = {
   costUsd?: number;
   tokens?: { input: number; output: number };
   status: StepStatus;
+  /** Cost cannot be measured (e.g. image generation); shown as "unknown", never $0 or summed. */
+  costUnknown?: boolean;
 };
 
 export type ApprovalRequest = {
@@ -41,5 +44,5 @@ export type FixitCtx = {
 
 export type MMMessage = UIMessage<
   never,
-  { trace: TraceStep; approval: ApprovalRequest; job: { jobId: string; jobToken?: string }; chips: { options: string[] }; ctx: FixitCtx; email: { subject: string; body?: string } }
+  { trace: TraceStep; approval: ApprovalRequest; job: { jobId: string; jobToken?: string }; chips: { options: string[] }; ctx: FixitCtx; email: { subject: string; body?: string }; illustration: IllustrationRequest }
 >;
