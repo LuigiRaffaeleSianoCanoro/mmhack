@@ -29,3 +29,7 @@ The direct Anthropic provider was removed. The Neon AI Gateway is the only route
 Gateway `/v1/models` lists `claude-sonnet-5` but not `claude-sonnet-5-5`, so the plan step uses `claude-sonnet-5` through the gateway.
 Evidence for keeping the Sonnet family over gpt-6-astra (9.0 vs 8.7 quality): astra was 1.7x slower (9.5s vs 5.7s) and ~3x the cost, and the plan is on the demo's critical path.
 If claude-sonnet-5 errors, the router retries on gpt-5 (fast option) on the same gateway; this is shown in the trace as a retry, not a provider switch. `ANTHROPIC_API_KEY` and `@ai-sdk/anthropic` are no longer used.
+
+## Addendum (2026-10-11): video uploads (PR #40)
+
+No model change. A short video (≤60s, ≤50 MB, mp4/mov/webm) is reduced in the browser to 5 evenly spaced JPEG frames and sent to the same gpt-5 vision step, with the prompt prefixed "These are 5 frames from a short video, in order." The HAZARD verdict gate is unchanged. The single-photo bake numbers above ($0.0025/call, 3.6s, 8.0/10) do not cover the 5-frame path: expect roughly 5x image input tokens and higher latency. Multi-frame bake evidence is pending; until then the video path is treated as unbenched.

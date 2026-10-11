@@ -4,10 +4,12 @@ import { ArrowUp, FileAudio, ImagePlus, Paperclip, Square, X } from "lucide-reac
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { checkVideo, extractFrames, isVideo, VIDEO_FRAMES, VIDEO_MAX_BYTES } from "@/lib/video-frames";
 
 const MAX_FILES = 4;
 const MAX_BYTES = 10 * 1024 * 1024;
-const accepted = (f: File) => f.type.startsWith("image/") || f.type.startsWith("audio/");
+const accepted = (f: File) => f.type.startsWith("image/") || f.type.startsWith("audio/") || isVideo(f);
+const sizeOk = (f: File) => f.size <= (isVideo(f) ? VIDEO_MAX_BYTES : MAX_BYTES);
 
 export function Composer({
   busy,
@@ -26,32 +28,57 @@ export function Composer({
   const dragDepth = useRef(0);
 
   // Thumbnail previews for images; revoked when the attachment list changes.
-  const previews = useMemo(() => files.map((f) => (f.type.startsWith("image/") ? URL.createObjectURL(f) : "")), [files]);
+  const previews = useMemo(() => files.map((f) => (f.type.startsWith("image/") || isVideo(f) ? URL.createObjectURL(f) : "")), [files]);
+  const [extracting, setExtracting] = useState(false);
   useEffect(() => () => previews.forEach((u) => u && URL.revokeObjectURL(u)), [previews]);
 
   /** Same path for the file picker, paste and drag-and-drop. */
-  function add(list: Iterable<File>) {
-    const incoming = Array.from(list);
-    const ok = incoming.filter((f) => accepted(f) && f.size <= MAX_BYTES).map((f, i) =>
+  async function add(list: Iterable<File>) {
+    const all = Array.from(list);
+    // Videos: one at a time, checked for length/size, and sent alone (its 5 frames use the whole image budget).
+    const vids = all.filter((f) => isVideo(f) && accepted(f));
+    if (vids.length) {
+      const v = vids[0];
+      const err = v.size > VIDEO_MAX_BYTES ? `Video too large (max ${VIDEO_MAX_BYTES / 1048576} MB).` : await checkVideo(v);
+      if (err) { setNote(err); return; }
+      setFiles((prev) => [...prev.filter((f) => f.type.startsWith("audio/")), v]);
+      setNote(prev0(files) ? "A video is sent on its own (photos removed)." : undefined);
+      return;
+    }
+    const incoming = all;
+    const ok = incoming.filter((f) => accepted(f) && sizeOk(f)).map((f, i) =>
       // Clipboard images often arrive as "image.png" with no unique name: give each a stable, readable one.
       !f.name || f.name === "image.png" ? new File([f], `pasted-${Date.now()}-${i}.${(f.type.split("/")[1] || "png").replace("jpeg", "jpg")}`, { type: f.type }) : f,
     );
     const skipped = incoming.length - ok.length;
     setFiles((prev) => {
-      const next = [...prev, ...ok].slice(0, MAX_FILES);
+      const next = [...prev.filter((f) => !isVideo(f)), ...ok].slice(0, MAX_FILES);
       const dropped = prev.length + ok.length - next.length;
-      setNote(skipped || dropped ? `${skipped ? `${skipped} file(s) skipped (images or audio up to 10 MB). ` : ""}${dropped ? `Max ${MAX_FILES} attachments.` : ""}`.trim() : undefined);
+      setNote(skipped || dropped ? `${skipped ? `${skipped} file(s) skipped (images or audio up to 10 MB, video up to 50 MB / 60s). ` : ""}${dropped ? `Max ${MAX_FILES} attachments.` : ""}`.trim() : undefined);
       return next;
     });
   }
+  const prev0 = (l: File[]) => l.some((f) => f.type.startsWith("image/"));
   const remove = (i: number) => setFiles((prev) => prev.filter((_, j) => j !== i));
 
-  function submit() {
-    if (busy || (!text.trim() && !files.length)) return;
+  async function submit() {
+    if (busy || extracting || (!text.trim() && !files.length)) return;
     let list: FileList | undefined;
     if (files.length) {
       const dt = new DataTransfer();
-      files.forEach((f) => dt.items.add(f));
+      for (const f of files) {
+        if (!isVideo(f)) { dt.items.add(f); continue; }
+        setExtracting(true);
+        setNote(`Reading ${VIDEO_FRAMES} frames from the video…`);
+        try {
+          (await extractFrames(f)).forEach((fr) => dt.items.add(fr));
+        } catch (e) {
+          setExtracting(false);
+          setNote((e as Error).message || "Could not read this video. Try a photo instead.");
+          return;
+        }
+        setExtracting(false);
+      }
       list = dt.files;
     }
     onSend(text, list);
@@ -86,8 +113,15 @@ export function Composer({
           {files.map((f, i) =>
             previews[i] ? (
               <span key={`${f.name}-${i}`} className="group relative">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={previews[i]} alt={f.name} className="size-16 rounded-md border object-cover" />
+                {isVideo(f) ? (
+                  <span className="relative block">
+                    <video src={`${previews[i]}#t=0.1`} muted playsInline preload="metadata" aria-label={f.name} className="size-16 rounded-md border object-cover" />
+                    <span className="absolute bottom-0.5 left-0.5 rounded bg-black/70 px-1 text-[9px] text-white">Video</span>
+                  </span>
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={previews[i]} alt={f.name} className="size-16 rounded-md border object-cover" />
+                )}
                 <button type="button" aria-label={`Remove ${f.name}`} onClick={() => remove(i)} className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full border bg-background text-foreground shadow">
                   <X className="size-3" />
                 </button>
@@ -122,18 +156,18 @@ export function Composer({
             submit();
           }
         }}
-        placeholder="Describe what is broken, or attach, paste or drop a photo."
+        placeholder="Describe what is broken, or attach a photo or short video."
         className="max-h-48 min-h-12 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 dark:bg-transparent"
       />
       <div className="flex items-center justify-between">
-        <input ref={fileRef} type="file" accept="image/*,audio/*" multiple hidden onChange={(e) => { if (e.target.files) add(e.target.files); e.target.value = ""; }} />
-        <Button type="button" variant="ghost" size="icon" aria-label="Attach image or audio" onClick={() => fileRef.current?.click()}>
+        <input ref={fileRef} type="file" accept="image/*,audio/*,video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" multiple hidden onChange={(e) => { if (e.target.files) add(e.target.files); e.target.value = ""; }} />
+        <Button type="button" variant="ghost" size="icon" aria-label="Attach image, video or audio" onClick={() => fileRef.current?.click()}>
           <Paperclip />
         </Button>
         {busy ? (
           <Button type="button" size="icon" variant="secondary" aria-label="Stop" onClick={onStop}><Square /></Button>
         ) : (
-          <Button type="submit" size="icon" aria-label="Send"><ArrowUp /></Button>
+          <Button type="submit" size="icon" aria-label="Send" disabled={extracting}><ArrowUp /></Button>
         )}
       </div>
     </form>

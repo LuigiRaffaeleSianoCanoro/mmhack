@@ -58,7 +58,10 @@ export async function POST(req: Request) {
   const last = messages[messages.length - 1];
   const text = last.parts.map((p) => (p.type === "text" ? p.text : "")).join(" ").trim();
   const images = last.parts.flatMap((p) => (p.type === "file" && p.mediaType.startsWith("image/") ? [p.url] : []));
-  const bad = checkImages(images);
+  const imgParts = last.parts.filter((p) => p.type === "file" && p.mediaType.startsWith("image/"));
+  // A video arrives as client-extracted frames named video-frame-N-of-5.jpg; only an all-frames upload gets the 5-image budget.
+  const isVideo = imgParts.length > 0 && imgParts.every((p) => p.type === "file" && /^video-frame-\d+-of-\d+\.jpg$/.test(p.filename ?? ""));
+  const bad = checkImages(images, isVideo);
   if (bad) return refuse(bad, "image");
   // Approvals make no model calls; hazard text gets the deterministic safety stop, never a quota refusal.
   if (!approved && !HAZARD.test(text)) {
@@ -380,10 +383,12 @@ export async function POST(req: Request) {
       // Turn 1: triage + vision in parallel, then a one-line confirmation.
       if (!ctx) {
         const tri: TraceStep = { id: "triage", task: "Triage the problem", model: "gpt-5-mini", provider: "neon-gateway", why: "Short structured classification: smallest reliable model.", status: "running" };
-        const vis: TraceStep = { id: "vision", task: "Inspect the photo", model: "gpt-5", provider: "neon-gateway", why: "Photo attached: strong vision model reads fixture, damage, likely failed part.", status: "running" };
+        const vis: TraceStep = isVideo
+          ? { id: "vision", task: `Video read by gpt-5 (${images.length} frames)`, model: "gpt-5", provider: "neon-gateway", why: `Short video attached: ${images.length} evenly spaced frames extracted in the browser, read in order by the strong vision model.`, status: "running" }
+          : { id: "vision", task: "Inspect the photo", model: "gpt-5", provider: "neon-gateway", why: "Photo attached: strong vision model reads fixture, damage, likely failed part.", status: "running" };
         const t0 = performance.now();
         const visionP = images.length
-          ? (put(vis), generateText({ model: gateway.chat("gpt-5"), providerOptions: { "neon-gateway": { reasoningEffort: "low" } }, messages: [{ role: "user", content: [{ type: "text", text: "Describe the home-repair issue in this photo in 3 short bullets: fixture type, visible problem, likely failed part. No advice. Then a final line exactly \"HAZARD: yes\" or \"HAZARD: no\" (yes if the photo shows a gas leak, sparking, exposed or damaged wiring, scorched or melted outlets or switches, smoke or fire, water on electrical equipment, active flooding or sewage; a normal appliance or a drip is no)." }, ...images.map((url) => ({ type: "image" as const, image: url }))] }] }))
+          ? (put(vis), generateText({ model: gateway.chat("gpt-5"), providerOptions: { "neon-gateway": { reasoningEffort: "low" } }, messages: [{ role: "user", content: [{ type: "text", text: (isVideo ? `These are ${images.length} frames from a short video, in order. Treat them as one scene. ` : "") + "Describe the home-repair issue in this photo in 3 short bullets: fixture type, visible problem, likely failed part. No advice. Then a final line exactly \"HAZARD: yes\" or \"HAZARD: no\" (yes if the photo shows a gas leak, sparking, exposed or damaged wiring, scorched or melted outlets or switches, smoke or fire, water on electrical equipment, active flooding or sewage; a normal appliance or a drip is no)." }, ...images.map((url) => ({ type: "image" as const, image: url }))] }] }))
           : null;
         visionP?.catch(() => {});
         let triage: Triage & { lang?: string } = { category: "general", urgency: "medium", hazard: false, summary: text };

@@ -296,7 +296,7 @@ Upload and request limits are enforced in `src/lib/limits.ts`.
 
 | Limit | Value | Environment variable |
 | --- | --- | --- |
-| Images per request | 4 maximum | — |
+| Images per request | 4 maximum (5 when the upload is a video: 5 browser-extracted frames, each still ≤4 MB) | — |
 | Decoded image size | 4 MB each | — |
 | Request body | 4.4 MB, below Vercel’s 4.5 MB limit | — |
 | Image source | Uploaded data URLs only | — |
