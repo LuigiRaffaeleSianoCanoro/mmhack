@@ -45,3 +45,28 @@ export async function sendOnce(uid: string, key: string, mail: { to: string; sub
 }
 
 export const msg = (e: unknown) => (e instanceof Error ? e.message : String(e)).replace(/ak_[A-Za-z0-9_-]+/g, "[key]").slice(0, 200);
+
+// AWS-72: Profile "Connect Gmail" status: connected address and disconnect.
+const client = () => new Composio({ apiKey: process.env.COMPOSIO_API_KEY });
+const emails = new Map<string, string>();
+export async function gmailAccount(uid: string) {
+  const { connected, session: s } = await gmailStatus(uid);
+  if (!connected) { emails.delete(uid); return { connected: false as const }; }
+  let email = emails.get(uid);
+  if (!email) {
+    try {
+      const r = await s.execute("GMAIL_GET_PROFILE", { user_id: "me" });
+      const d = (r as { data?: { emailAddress?: string; response_data?: { emailAddress?: string } } }).data;
+      email = d?.emailAddress ?? d?.response_data?.emailAddress ?? "";
+      if (email) emails.set(uid, email);
+    } catch {}
+  }
+  return { connected: true as const, email: email || undefined };
+}
+export async function gmailDisconnect(uid: string) {
+  const list = await client().connectedAccounts.list({ userIds: [uid], toolkitSlugs: ["gmail"] });
+  const items = (list as { items?: { id: string }[] }).items ?? [];
+  for (const a of items) await client().connectedAccounts.delete(a.id);
+  emails.delete(uid);
+  return items.length;
+}
