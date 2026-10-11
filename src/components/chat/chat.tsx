@@ -9,6 +9,7 @@ import { FileAudio } from "lucide-react";
 import { getAssistant } from "@/lib/assistants";
 import { Button } from "@/components/ui/button";
 import { ApprovalCard } from "./approval-card";
+import { DeliverCard } from "./deliver-card";
 import { IllustrationCard } from "./illustration-card";
 import { EmailCard } from "./email-card";
 import { Markdown } from "./markdown";
@@ -154,6 +155,8 @@ export function Chat({ slug, sessionId, initialMessages, onMessages, headerLeft 
                       );
                     if (p.type === "data-illustration")
                       return <IllustrationCard key={i} request={p.data} onTrace={(st) => setIllus((x) => ({ ...x, [m.id]: st }))} />;
+                    if (p.type === "data-delivery")
+                      return busy && m.id === messages.at(-1)?.id ? null : <DeliverCard key={i} ready={p.data} draftText={p.data.body ?? m.parts.map((q) => (q.type === "text" ? q.text : "")).join("").trim()} />;
                     if (p.type === "data-approval")
                       return (
                         <ApprovalCard
