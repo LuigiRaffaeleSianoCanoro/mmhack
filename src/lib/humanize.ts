@@ -55,8 +55,11 @@ export function stepLine(s: TraceStep, sent?: { to?: string; at?: number }): str
       return m[3] ? `${by}: this looks like a safety hazard.` : `${by}: a ${m[1]} issue, ${m[2]} urgency.`;
     }
     case "vision":
-      if (err) return "We couldn't read the photo this time.";
-      return s.note ? `We read your photo: ${s.note.replace(/\.$/, "")}.` : "We read your photo.";
+      {
+        const what = s.task.startsWith("Video read") ? "video" : "photo";
+        if (err) return `We couldn't read the ${what} this time.`;
+        return s.note ? `We read your ${what}: ${s.note.replace(/\.$/, "")}.` : `We read your ${what}.`;
+      }
     case "confirm": return "Confirmed what we saw with you.";
     case "understand": return "Understood your reply.";
     case "followup": return "Answered your question.";
