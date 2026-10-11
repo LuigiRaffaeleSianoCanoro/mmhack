@@ -1,22 +1,10 @@
-# Design system: the shelf
+# Design system: FixIt
 
-Reference: press.stripe.com (studied Oct 11 2026; refs in `shots/ref/`). What we took, and what we changed.
-
-## From Stripe Press
-| Stripe Press | mmhack |
-|---|---|
-| Home is a 3D stack of book spines on a dark warm field, seen slightly from above (top page-block visible) | Home (`/`) is a stack of **assistants as books**. Each has its own spine color, title, byline (the models it leans on) and type treatment |
-| Scrolling fans the stack apart; books separate vertically | `useScroll` drives a sprung `spread` (2px to 64px gap) and a slight extra tilt (-6deg to -14deg) |
-| Left index rail of hairline ticks | Same rail; active tick grows and turns accent |
-| Tiny logo + serif italic tagline top-left | `MMHACK` wordmark + Newsreader italic "A shelf of assistants" |
-| Mixed spine typography (serif italic, wide caps sans, grotesk) | `type: serif / sans / display` per assistant |
-| Book pulls out on selection | Hover/focus: book slides toward the viewer (`z: 36`, `x: 10`). Click: `z: 120` in 280ms, then route to `/a/[slug]` |
+FixIt is the only product. The bookshelf picker was removed on Oct 11 2026.
 
 ## Our layers
 1. **Canvas**: near-black `--background` (faint violet cast).
-2. **Content color**: spine cloths (muted oklch, low chroma) + `cloth.png` linen texture. Spines are content, like covers; they are the only multi-color element.
 3. **UI accent**: ONE, `--mm-accent` electric violet. Interactive only (links, primary button, focus ring, active tick, running state).
-4. **Ribbed glass** (`.ribbed-glass`, `.ribbed-glass-h`): every floating surface (chat header, trace panel, composer, shelf caption card).
 5. **Heavy grain** (`.grain-overlay`): one fixed layer over everything, mounted once in `layout.tsx`.
 
 ## Heavy-grain web experiences
@@ -33,18 +21,10 @@ Reference: press.stripe.com (studied Oct 11 2026; refs in `shots/ref/`). What we
 - Upgrade path (not shipped, perf cost): SVG `feDisplacementMap` driven by a stripe gradient, or a WebGL pass that offsets the backdrop by `sin(x / rib)` per flute for true linear refraction. Keep the CSS version as the fallback.
 
 ## Tokens (src/app/globals.css)
-`--mm-accent*`, `--grain-opacity`, `--grain-size`, `--rib-width`, `--rib-light`, `--rib-dark`, `--glass-tint`, `--glass-blur`, `--shelf-perspective`, `--book-h`, `--book-depth`, `--ease-out`, `--ease-in-out`, `--dur-*`. Assistant spine colors live in `src/lib/assistants.ts`.
 
-## Adding an assistant
-Add an entry to `ASSISTANTS`: slug, title, author (byline), activity, blurb, spine, ink, type, system prompt, optional `prefer: "reason" | "fast"` (biases the router), starters. It appears on the shelf and gets `/a/<slug>` automatically.
 
-## Assets
-Textures are generated procedurally (`grain.png`, `cloth.png`). Image generation via the Neon gateway was skipped: its catalog lists gpt-5-5-pro as text output only, and procedural textures are smaller and tile perfectly.
-
-## Book materials (v2, Oct 11)
-- Textures generated with **gpt-6-astra** via the Neon gateway (`/openai/v1/responses`, image_generation tool, JPEG, medium): `linen`, `worn` (vintage bookcloth), `leather` (pebbled grain), `pages` (page-edge block). gpt-5-5-pro was tried once and timed out (504).
-- Post-processing (`scripts` inline in commit history): grayscale, normalized to mid-gray, made seamless by blending with a half-offset copy, resized to 256 to 384px, WebP q68. Total about 130KB. `pages.webp` keeps a cream tint.
-- Tinting: one grayscale texture serves every color via `background-blend-mode: overlay` over the spine color, so each book keeps its distinct cloth color.
-- Per book (`material` + `foil` in `src/lib/assistants.ts`): leather (Router, Plain Style), linen (Code, Vision, Ops), worn cloth (Research, Voice).
-- Spine details in CSS (`.book-spine`, `.book-band`, `.book-foil`, `.book-deboss`): rounded-spine shading, rubbed corners and edge wear (soft-light radial gradients), two embossed raised bands, gold-foil stamped titles or debossed titles.
-- 3D: top face = cover board in the same material, darkening toward the back; right end face (`.book-end`) = page block between two board edges. The stack has a slight `rotateY(-14deg)` so the page ends show. Static textures only; no animated filters, so scrolling stays on the compositor. Reduced motion is unchanged (fixed tilt, no pull-out, static grain).
+## FixIt surface (Oct 11)
+- **Backdrop**: brick wall with a broken bottom-right corner (missing bricks, exposed pipe, small leak). gpt-6-astra wrote 3 art-direction prompts, then gpt-6-astra and gpt-5-5-pro rendered them (gpt-image-2 returned 400). gpt-6-astra judged the candidates against the criteria and picked `gpt-6-astra-p1` (9.0). Candidates are in `shots/bg-candidates/`. The image is desaturated to 60% and shipped as WebP at 960 and 1600px (16KB and 48KB) with a radial vignette (`.brick-bg`). The chat column sits on a near-opaque `bg-background/88` panel, so text contrast is the same as on plain near-black (AA). `--muted-foreground` was raised to L 0.72.
+- **Wizard**: confirm (gpt-5-mini) with chips, then 1-2 clarifying questions with chips, then a short plan (Sonnet, with gpt-5 fallback) with a "Show details" expander, then the landlord-draft approval. Every message is 1-3 sentences, in the user's language. Hazard words trigger the safety stop immediately on any turn.
+- **Inline trace**: there is no trace column. Each assistant turn gets a slim glass alert ("Triaged by gpt-5-mini · Photo by gpt-5 · ..."), which expands to show why each model ran. Icon buttons show latency, cost, provider and why, as tooltips on hover/focus and as inline text on tap (mobile). Errors and fallbacks show as an amber chip with the reason in a tooltip. The session cost total is in the header.
+- **Sessions**: a left sidebar (a drawer on mobile, collapsible on desktop) with New chat and history. Sessions are stored in localStorage (`fixit.sessions.v1`) and titled from the first message.

@@ -4,53 +4,51 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
-import { Activity, ArrowLeft, FileAudio } from "lucide-react";
+import { FileAudio } from "lucide-react";
 import { getAssistant } from "@/lib/assistants";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ApprovalCard } from "./approval-card";
 import { Markdown } from "./markdown";
 import { Composer } from "./composer";
-import { TracePanel, type TraceTurn } from "./trace-panel";
+import { TraceInline } from "./trace-inline";
+import type { TraceStep } from "@/lib/trace";
+
+const DETAILS = "<!--details-->";
 import type { MMMessage } from "@/lib/trace";
 import { cn } from "@/lib/utils";
 
-export function Chat({ slug }: { slug: string }) {
+export function Chat({ slug, sessionId, initialMessages, onMessages, headerLeft }: { slug: string; sessionId?: string; initialMessages?: MMMessage[]; onMessages?: (m: MMMessage[]) => void; headerLeft?: React.ReactNode }) {
   const assistant = getAssistant(slug)!;
   const reduce = useReducedMotion();
   const [decisions, setDecisions] = useState<Record<string, "approved" | "rejected">>({});
   const { messages, sendMessage, status, stop, error } = useChat<MMMessage>({
-    id: `mmhack-${slug}`,
+    id: sessionId ?? `mmhack-${slug}`,
+    messages: initialMessages,
     transport: new DefaultChatTransport({ api: assistant.api ?? "/api/chat", body: { assistant: slug } }),
   });
   const busy = status === "submitted" || status === "streaming";
+  useEffect(() => {
+    if (!busy && messages.length) onMessages?.(messages);
+  }, [busy, messages, onMessages]);
   const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "end" });
   }, [messages, reduce]);
 
-  const turns: TraceTurn[] = useMemo(() => {
-    const out: TraceTurn[] = [];
-    messages.forEach((m, i) => {
-      if (m.role !== "assistant") return;
-      const prev = messages[i - 1];
-      const prompt = prev?.parts.map((p) => (p.type === "text" ? p.text : p.type === "file" ? `[${p.mediaType}]` : "")).join(" ") ?? "";
-      const d = decisions[m.id];
-      const steps = m.parts.flatMap((p) =>
-        p.type !== "data-trace" ? [] : p.data.status === "awaiting_approval" && d ? [{ ...p.data, status: d === "approved" ? ("done" as const) : ("skipped" as const), why: d === "approved" ? "Approved by a human." : "Rejected by a human. Nothing ran." }] : [p.data],
-      );
-      if (steps.length) out.push({ turn: out.length + 1, prompt, steps });
-    });
-    return out;
-  }, [messages, decisions]);
-
-  const trace = <TracePanel turns={turns} />;
+  const stepsOf = (m: MMMessage): TraceStep[] => {
+    const d = decisions[m.id];
+    return m.parts.flatMap((p) =>
+      p.type !== "data-trace" ? [] : p.data.status === "awaiting_approval" && d ? [{ ...p.data, status: d === "approved" ? ("done" as const) : ("skipped" as const), why: d === "approved" ? "Approved by a human." : "Rejected by a human. Nothing ran." }] : [p.data],
+    );
+  };
+  const sessionCost = messages.reduce((a, m) => a + stepsOf(m).reduce((b, s) => b + (s.costUsd ?? 0), 0), 0);
 
   return (
     <div className="flex h-dvh flex-col">
+      {slug === "fixit" && <div aria-hidden className="brick-bg" />}
       <header className="ribbed-glass relative z-30 flex h-12 shrink-0 items-center gap-3 border-b px-4">
-        <Link href="/shelf" className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground" aria-label="Back to the shelf">
-          <ArrowLeft className="size-4" />
+        {headerLeft}
+        <Link href="/" className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground" aria-label="FixIt home">
           <span className="font-display text-sm font-bold uppercase tracking-[0.2em] text-foreground">
             mm<span className="text-mm-accent">hack</span>
           </span>
@@ -58,21 +56,13 @@ export function Chat({ slug }: { slug: string }) {
         <span className="cloth hidden h-6 items-center rounded-[2px] px-3 font-mono text-[10px] uppercase tracking-[0.16em] sm:flex" style={{ backgroundColor: assistant.spine, color: assistant.ink }}>
           {assistant.title}
         </span>
-        <Sheet>
-          <SheetTrigger render={<Button variant="ghost" size="sm" className="ml-auto lg:hidden" />}>
-            <Activity /> Trace
-          </SheetTrigger>
-          <SheetContent side="right" className="w-[90vw] p-0 sm:max-w-md">
-            <SheetTitle className="sr-only">Routing trace</SheetTitle>
-            {trace}
-          </SheetContent>
-        </Sheet>
+        <span className="ml-auto font-mono text-[10px] text-muted-foreground" title="Session model cost (estimate)">session ${sessionCost.toFixed(3)}</span>
       </header>
 
       <div className="flex min-h-0 flex-1">
         <main className="flex min-w-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 overflow-y-auto">
-            <div className="mx-auto flex max-w-2xl flex-col gap-5 px-4 py-6">
+            <div className="mx-auto flex min-h-full max-w-2xl flex-col gap-5 bg-background/88 px-4 py-6 shadow-[0_0_60px_30px_oklch(0.125_0.005_300/0.6)]">
               {messages.length === 0 && (
                 <div className="flex flex-col gap-6 pt-[12vh]">
                   <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-mm-accent">{assistant.activity} / by {assistant.author}</p>
@@ -114,7 +104,20 @@ export function Chat({ slug }: { slug: string }) {
                 >
                   {m.parts.map((p, i) => {
                     if (p.type === "text" && m.role === "assistant")
-                      return <div key={i} className="max-w-[85%]"><Markdown>{p.text}</Markdown></div>;
+                      {
+                      const [head, more] = p.text.split(DETAILS);
+                      return (
+                        <div key={i} className="max-w-[85%]">
+                          <Markdown>{head}</Markdown>
+                          {more?.trim() && (
+                            <details className="mt-2 rounded-md border border-border bg-card/80 px-3 py-2 text-sm">
+                              <summary className="cursor-pointer text-mm-accent">Show details</summary>
+                              <div className="mt-2"><Markdown>{more}</Markdown></div>
+                            </details>
+                          )}
+                        </div>
+                      );
+                    }
                     if (p.type === "text")
                       return (
                         <div key={i} className={cn("max-w-[85%] whitespace-pre-wrap text-[15px] leading-relaxed", m.role === "user" ? "rounded-2xl rounded-br-sm bg-secondary px-4 py-2.5" : "")}>
@@ -140,8 +143,17 @@ export function Chat({ slug }: { slug: string }) {
                           }}
                         />
                       );
+                    if (p.type === "data-chips")
+                      return m.id === messages.at(-1)?.id && !busy ? (
+                        <div key={i} className="flex flex-wrap gap-2">
+                          {p.data.options.map((o) => (
+                            <Button key={o} size="sm" variant="outline" className="rounded-full bg-card" onClick={() => sendMessage({ text: o })}>{o}</Button>
+                          ))}
+                        </div>
+                      ) : null;
                     return null;
                   })}
+                  {m.role === "assistant" && <TraceInline steps={stepsOf(m)} />}
                   {m.role === "assistant" && busy && m.id === messages.at(-1)?.id && !m.parts.some((p) => p.type === "text") && !m.parts.some((p) => p.type === "data-approval") && (
                     <span className="h-4 w-16 animate-pulse rounded bg-muted" />
                   )}
@@ -156,7 +168,6 @@ export function Chat({ slug }: { slug: string }) {
             <Composer busy={busy} onStop={stop} onSend={(text, files) => sendMessage({ text, files })} />
           </div>
         </main>
-        <div className="ribbed-glass hidden w-[380px] shrink-0 border-l lg:block">{trace}</div>
       </div>
     </div>
   );

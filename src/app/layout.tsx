@@ -8,7 +8,7 @@ const oswald = Oswald({ variable: "--font-display", subsets: ["latin"], weight: 
 const newsreader = Newsreader({ variable: "--font-serif", subsets: ["latin"], style: ["normal", "italic"] });
 
 export const metadata: Metadata = {
-  title: "mmhack: a shelf of assistants",
+  title: "FixIt: renter repair help",
   description: "Pick a book, open a chat. Every routing decision is visible.",
 };
 

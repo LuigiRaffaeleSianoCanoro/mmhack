@@ -55,7 +55,7 @@ export function Composer({
             submit();
           }
         }}
-        placeholder="Ask anything. Attach an image or audio to see the router switch models."
+        placeholder="Describe what is broken, or attach a photo."
         className="max-h-48 min-h-12 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 dark:bg-transparent"
       />
       <div className="flex items-center justify-between">
