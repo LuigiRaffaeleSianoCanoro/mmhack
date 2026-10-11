@@ -10,7 +10,8 @@ Sources: emilkowal.ski/skill, github.com/emilkowalski/skills (emil-design-eng, a
 5. **Properties.** Animate `transform` and `opacity` only. Never animate from `scale(0)`; start at 0.95 to 0.98 plus opacity. Small y offsets (4 to 8px).
 6. **Interruptibility.** Prefer CSS transitions (interruptible) for state changes; keyframes only for one-shot. Springs for gesture-driven motion (drag, swipe sheets).
 7. **Origin awareness.** Popovers and dropdowns scale from their trigger (`transform-origin`), modals from center.
-8. **Accessibility.** `prefers-reduced-motion: reduce` removes movement (global CSS kill switch in globals.css, plus `useReducedMotion()` in motion components to skip `initial`). Gate hover effects behind `@media (hover: hover)`.
+8. **Reduced motion on the shelf.** Fixed tilt, no spring, no pull-out, grain static, click routes immediately.
+9. **Accessibility.** `prefers-reduced-motion: reduce` removes movement (global CSS kill switch in globals.css, plus `useReducedMotion()` in motion components to skip `initial`). Gate hover effects behind `@media (hover: hover)`.
 
 ## Where mmhack uses motion
 | Element | Motion | Why |
@@ -20,6 +21,11 @@ Sources: emilkowal.ski/skill, github.com/emilkowalski/skills (emil-design-eng, a
 | Running step | accent border + spinner icon | Progress without movement noise |
 | Approval card | opacity + y 6px + scale 0.98 to 1, 220ms | A rare, important interruption deserves a beat |
 | Buttons | 1px press translate (shadcn default) | Tactile, essentially free |
+| Shelf fan on scroll | sprung spread (stiffness 220, damping 32) + tilt, scroll-linked | Scroll-driven motion should follow the finger, a spring keeps it physical and interruptible |
+| Book hover/focus | translateZ 36px + x 10px, 220ms ease-out | Pulled off the shelf: tells you which book you are about to open |
+| Book open | translateZ 120px, 280ms ease-out, then route | The book comes to you; the navigation feels caused by the click. Skipped under reduced motion (instant route) |
+| Caption card swap | opacity + y 6px, 200ms | Ties the caption to the hovered book |
+| Grain | steps(6) transform jitter, 0.9s loop | Film texture; compositor-only. Off under reduced motion |
 | Typing / send | none | High frequency, must feel instant |
 
 ## Review checklist

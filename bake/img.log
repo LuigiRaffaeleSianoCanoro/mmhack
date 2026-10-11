@@ -1,0 +1,34 @@
+[
+ {
+  "model": "gpt-5-5-pro",
+  "status": 504,
+  "ok": false,
+  "lat": 60.7,
+  "usage": null,
+  "err": "{'error_code': 'TEMPORARILY_UNAVAILABLE', 'message': 'The model took too long to respond. Reduce max_tokens or your input size, or use streaming.'}"
+ },
+ {
+  "model": "gpt-5",
+  "status": 400,
+  "ok": false,
+  "lat": 54.2,
+  "usage": null,
+  "err": "{'error_code': 'BAD_REQUEST', 'message': 'ai gateway upstream model rejected the request: The response content length cannot be greater than 655360 bytes long.'}"
+ },
+ {
+  "model": "gpt-5-mini",
+  "status": 400,
+  "ok": false,
+  "lat": 38.1,
+  "usage": null,
+  "err": "{'error_code': 'BAD_REQUEST', 'message': 'ai gateway upstream model rejected the request: The response content length cannot be greater than 655360 bytes long.'}"
+ },
+ {
+  "model": "gpt-6-astra",
+  "status": 400,
+  "ok": false,
+  "lat": 42.8,
+  "usage": null,
+  "err": "{'error_code': 'BAD_REQUEST', 'message': 'ai gateway upstream model rejected the request: The response content length cannot be greater than 655360 bytes long.'}"
+ }
+]

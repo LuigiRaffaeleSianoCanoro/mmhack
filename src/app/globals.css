@@ -10,6 +10,7 @@
   --font-sans: var(--font-sans);
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   --font-heading: var(--font-display);
+  --font-serif: var(--font-serif);
   --color-mm-accent: var(--mm-accent);
   --color-mm-accent-soft: var(--mm-accent-soft);
   --color-mm-ok: var(--mm-ok);
@@ -61,13 +62,27 @@
   --mm-ok: oklch(0.78 0.14 160);
   --mm-warn: oklch(0.82 0.15 85);
 
+  /* Heavy grain */
+  --grain-opacity: 0.11;
+  --grain-size: 160px;
+  /* Ribbed glass (fluted / reeded) */
+  --rib-width: 6px;
+  --rib-light: oklch(1 0 0 / 5.5%);
+  --rib-dark: oklch(0 0 0 / 22%);
+  --glass-tint: oklch(0.16 0.006 285 / 55%);
+  --glass-blur: 14px;
+  /* Shelf */
+  --shelf-perspective: 1600px;
+  --book-h: 64px;
+  --book-depth: 96px;
+
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --dur-fast: 150ms;
   --dur-base: 220ms;
   --dur-slow: 320ms;
 
-  --background: oklch(0.13 0.004 285);
+  --background: oklch(0.125 0.005 300);
   --foreground: oklch(0.96 0.003 285);
   --card: oklch(0.17 0.005 285);
   --card-foreground: oklch(0.96 0.003 285);
@@ -124,3 +139,64 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------- Heavy grain: one fixed, pre-rendered noise tile. GPU-cheap (no live SVG filter). ---------- */
+.grain-overlay {
+  pointer-events: none;
+  position: fixed;
+  inset: -50%;
+  z-index: 60;
+  background-image: url("/textures/grain.png");
+  background-size: var(--grain-size);
+  opacity: var(--grain-opacity);
+  mix-blend-mode: overlay;
+  animation: grain-shift 0.9s steps(6) infinite;
+  will-change: transform;
+}
+@keyframes grain-shift {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(-3%, 2%); }
+  40% { transform: translate(2%, -4%); }
+  60% { transform: translate(-4%, -1%); }
+  80% { transform: translate(3%, 3%); }
+  100% { transform: translate(0, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .grain-overlay { animation: none; } }
+
+/* ---------- Ribbed glass & linear refraction ----------
+   backdrop blur = frosting; repeating gradient = vertical flutes (light edge, dark trough);
+   a horizontal backdrop offset per flute is approximated by the skewed highlight layer. */
+.ribbed-glass {
+  position: relative;
+  background-color: var(--glass-tint);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.2);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.2);
+  isolation: isolate;
+}
+.ribbed-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--rib-light) 0,
+    transparent calc(var(--rib-width) * 0.35),
+    var(--rib-dark) calc(var(--rib-width) * 0.85),
+    var(--rib-light) var(--rib-width)
+  );
+  mix-blend-mode: overlay;
+}
+.ribbed-glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent 30%, oklch(1 0 0 / 6%) 45%, transparent 60%);
+}
+.ribbed-glass-h::before { background-image: repeating-linear-gradient(0deg, var(--rib-light) 0, transparent calc(var(--rib-width) * 0.35), var(--rib-dark) calc(var(--rib-width) * 0.85), var(--rib-light) var(--rib-width)); }
+
+/* Cloth texture for book spines */
+.cloth { background-image: url("/textures/cloth.png"); background-size: 128px; background-blend-mode: soft-light; }

@@ -1,0 +1,78 @@
+[
+ {
+  "model": "gpt-5-5-pro",
+  "status": 200,
+  "ok": true,
+  "lat": 29.6,
+  "usage": {
+   "input_tokens_details": {
+    "cache_write_tokens": 0,
+    "cached_tokens": 0
+   },
+   "input_tokens": 1798,
+   "output_tokens_details": {
+    "reasoning_tokens": 0
+   },
+   "total_tokens": 1973,
+   "output_tokens": 175
+  },
+  "err": null
+ },
+ {
+  "model": "gpt-5",
+  "status": 200,
+  "ok": true,
+  "lat": 34.7,
+  "usage": {
+   "input_tokens_details": {
+    "cache_write_tokens": 0,
+    "cached_tokens": 0
+   },
+   "input_tokens": 2159,
+   "output_tokens_details": {
+    "reasoning_tokens": 1024
+   },
+   "total_tokens": 3854,
+   "output_tokens": 1695
+  },
+  "err": null
+ },
+ {
+  "model": "gpt-5-mini",
+  "status": 200,
+  "ok": true,
+  "lat": 25.6,
+  "usage": {
+   "input_tokens_details": {
+    "cache_write_tokens": 0,
+    "cached_tokens": 0
+   },
+   "input_tokens": 3439,
+   "output_tokens_details": {
+    "reasoning_tokens": 1152
+   },
+   "total_tokens": 5255,
+   "output_tokens": 1816
+  },
+  "err": null
+ },
+ {
+  "model": "gpt-6-astra",
+  "status": 200,
+  "ok": true,
+  "lat": 24.9,
+  "usage": {
+   "input_tokens_details": {
+    "cache_write_tokens": 0,
+    "cached_tokens": 0
+   },
+   "input_tokens": 2026,
+   "output_tokens_details": {
+    "reasoning_tokens": 0
+   },
+   "total_tokens": 2429,
+   "output_tokens": 403
+  },
+  "err": null
+ }
+]

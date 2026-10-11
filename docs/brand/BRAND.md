@@ -2,6 +2,9 @@
 
 Source of truth for the UI. Every value maps to a CSS custom property in `src/app/globals.css`. Components consume tokens (Tailwind classes like `bg-background`, `text-mm-accent`, `border-border`). No raw hex in components.
 
+## Direction (Oct 11 update)
+Inspired by press.stripe.com: assistants are books on a 3D shelf. Surfaces are ribbed (fluted) glass, the whole page carries heavy film grain. See DESIGN.md for the system.
+
 ## Principles
 - Near-black canvas, ONE strong accent, everything else neutral. Linear-grade restraint: if it is not information, remove it.
 - Bold condensed display headings, quiet body.
@@ -20,12 +23,16 @@ Source of truth for the UI. Every value maps to a CSS custom property in `src/ap
 | **`--mm-accent`** | **`oklch(0.68 0.24 293)`** (electric violet, about `#9D6BFF`) | The one accent: primary buttons, focus ring, running state, wordmark half, index numbers |
 | `--mm-accent-soft` | accent at 14% | Selection, approval card wash |
 | `--mm-ok` / `--mm-warn` / `--destructive` | green / amber / red | Status icons ONLY, never decoration |
+| Spine cloths | muted oklch per assistant (`src/lib/assistants.ts`) | Content color on the shelf only, never UI chrome |
+| `--grain-opacity` | 0.11 | Film grain overlay strength |
+| `--rib-*`, `--glass-*` | 6px flutes, 14px blur | Ribbed glass surfaces |
 
 Accent choice: electric violet, distinct from Albert AI orange and Luigi's personal green. To rebrand, change `--mm-accent*` only.
 
 ## Type
 - Display: **Oswald** 500 to 700, uppercase, tracking `0.12em` to `0.2em` for labels, tight for hero (`font-display`).
 - Body: **Inter** (`font-sans`), 15px chat text, 1.6 line height.
+- Serif: **Newsreader** italic for taglines, blurbs, and serif spines (the Stripe Press bookish voice). Never for UI controls.
 - Mono: system mono for numbers (latency, cost, model ids). Indices use leading zeros: 01, 02.
 
 ## Wordmark

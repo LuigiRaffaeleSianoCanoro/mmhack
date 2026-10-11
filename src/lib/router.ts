@@ -23,7 +23,7 @@ export type Route = {
   why: string;
 };
 
-export type RouteInput = { text: string; hasImage: boolean; hasAudio: boolean };
+export type RouteInput = { text: string; hasImage: boolean; hasAudio: boolean; prefer?: "reason" | "fast" };
 
 const REASONING = /\b(code|debug|refactor|prove|plan|architect|analy[sz]e|compare|step[- ]by[- ]step|why)\b/i;
 const RISKY = /\b(send|email|delete|drop|pay|purchase|transfer|deploy|post|publish)\b/i;
@@ -38,15 +38,15 @@ export function needsApproval(text: string): { action: string; reason: string } 
 }
 
 /** Stub router: deterministic rules, cheapest capable model first. Swap for a learned router later. */
-export function route({ text, hasImage, hasAudio }: RouteInput): Route {
+export function route({ text, hasImage, hasAudio, prefer }: RouteInput): Route {
   const anthropic = !!process.env.ANTHROPIC_API_KEY;
   if (hasAudio)
     return { model: "gemini-3-flash", provider: "neon-gateway", task: "Understand audio", why: "Audio attached: needs a native audio-input model. Gemini Flash is the cheapest one on the gateway." };
   if (hasImage)
     return { model: "gpt-5-4-mini", provider: "neon-gateway", task: "Describe image", why: "Image attached: a small vision model is enough and keeps cost low." };
-  if (REASONING.test(text) || text.length > 600)
+  if (prefer !== "fast" && (prefer === "reason" || REASONING.test(text) || text.length > 600))
     return anthropic
-      ? { model: "claude-sonnet-5-5", provider: "anthropic", task: "Reason", why: "Reasoning or code intent detected: route to the strongest mid-tier reasoner." }
+      ? { model: "claude-sonnet-5-5", provider: "anthropic", task: "Reason", why: prefer === "reason" ? "This assistant leans on reasoning: route to the strongest mid-tier reasoner." : "Reasoning or code intent detected: route to the strongest mid-tier reasoner." }
       : { model: "claude-sonnet-5", provider: "neon-gateway", task: "Reason", why: "Reasoning intent detected; Anthropic key absent, so use Claude via the gateway." };
   return { model: "gemini-3-1-flash-lite", provider: "neon-gateway", task: "Answer", why: "Short general prompt: fastest, cheapest model wins." };
 }

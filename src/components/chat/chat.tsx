@@ -3,7 +3,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { motion, useReducedMotion } from "motion/react";
-import { Activity, FileAudio } from "lucide-react";
+import Link from "next/link";
+import { Activity, ArrowLeft, FileAudio } from "lucide-react";
+import { getAssistant } from "@/lib/assistants";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ApprovalCard } from "./approval-card";
@@ -13,18 +15,13 @@ import { TracePanel, type TraceTurn } from "./trace-panel";
 import type { MMMessage } from "@/lib/trace";
 import { cn } from "@/lib/utils";
 
-const SUGGESTIONS = [
-  "Explain what a model router does in two sentences.",
-  "Plan a 3-step refactor for a messy React component.",
-  "Send an email to the judges with our demo link.",
-];
-
-export function Chat() {
+export function Chat({ slug }: { slug: string }) {
+  const assistant = getAssistant(slug)!;
   const reduce = useReducedMotion();
   const [decisions, setDecisions] = useState<Record<string, "approved" | "rejected">>({});
   const { messages, sendMessage, status, stop, error } = useChat<MMMessage>({
-    id: "mmhack",
-    transport: new DefaultChatTransport({ api: "/api/chat" }),
+    id: `mmhack-${slug}`,
+    transport: new DefaultChatTransport({ api: "/api/chat", body: { assistant: slug } }),
   });
   const busy = status === "submitted" || status === "streaming";
   const endRef = useRef<HTMLDivElement>(null);
@@ -51,11 +48,16 @@ export function Chat() {
 
   return (
     <div className="flex h-dvh flex-col">
-      <header className="flex h-12 shrink-0 items-center gap-3 border-b px-4">
-        <span className="font-display text-sm font-bold uppercase tracking-[0.2em]">
-          mm<span className="text-mm-accent">hack</span>
+      <header className="ribbed-glass relative z-30 flex h-12 shrink-0 items-center gap-3 border-b px-4">
+        <Link href="/" className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground" aria-label="Back to the shelf">
+          <ArrowLeft className="size-4" />
+          <span className="font-display text-sm font-bold uppercase tracking-[0.2em] text-foreground">
+            mm<span className="text-mm-accent">hack</span>
+          </span>
+        </Link>
+        <span className="cloth hidden h-6 items-center rounded-[2px] px-3 font-mono text-[10px] uppercase tracking-[0.16em] sm:flex" style={{ backgroundColor: assistant.spine, color: assistant.ink }}>
+          {assistant.title}
         </span>
-        <span className="hidden text-xs text-muted-foreground sm:inline">one chat, many models, every decision visible</span>
         <Sheet>
           <SheetTrigger render={<Button variant="ghost" size="sm" className="ml-auto lg:hidden" />}>
             <Activity /> Trace
@@ -73,12 +75,11 @@ export function Chat() {
             <div className="mx-auto flex max-w-2xl flex-col gap-5 px-4 py-6">
               {messages.length === 0 && (
                 <div className="flex flex-col gap-6 pt-[12vh]">
-                  <h1 className="font-display text-4xl font-bold uppercase leading-none tracking-tight sm:text-6xl">
-                    Right model.<br /><span className="text-mm-accent">Every time.</span>
-                  </h1>
-                  <p className="max-w-md text-muted-foreground">Each message is routed to the cheapest model that can handle it. The trace shows why.</p>
+                  <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-mm-accent">{assistant.activity} / by {assistant.author}</p>
+                  <h1 className="font-display text-4xl font-bold uppercase leading-none tracking-tight sm:text-6xl">{assistant.title}</h1>
+                  <p className="max-w-md font-serif text-lg italic text-muted-foreground">{assistant.blurb}</p>
                   <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                    {SUGGESTIONS.map((s) => (
+                    {assistant.starters.map((s) => (
                       <Button key={s} variant="outline" size="sm" className="h-auto justify-start whitespace-normal py-2 text-left" onClick={() => sendMessage({ text: s })}>
                         {s}
                       </Button>
@@ -138,7 +139,7 @@ export function Chat() {
             <Composer busy={busy} onStop={stop} onSend={(text, files) => sendMessage({ text, files })} />
           </div>
         </main>
-        <div className="hidden w-[380px] shrink-0 border-l bg-sidebar lg:block">{trace}</div>
+        <div className="ribbed-glass hidden w-[380px] shrink-0 border-l lg:block">{trace}</div>
       </div>
     </div>
   );

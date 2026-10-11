@@ -1,11 +1,13 @@
 import { convertToModelMessages, createUIMessageStream, createUIMessageStreamResponse, streamText } from "ai";
+import { getAssistant } from "@/lib/assistants";
 import { estimateCost, modelFor, needsApproval, route } from "@/lib/router";
 import type { MMMessage, TraceStep } from "@/lib/trace";
 
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
-  const { messages, approved }: { messages: MMMessage[]; approved?: boolean } = await req.json();
+  const { messages, approved, assistant: slug }: { messages: MMMessage[]; approved?: boolean; assistant?: string } = await req.json();
+  const assistant = getAssistant(slug ?? "router") ?? getAssistant("router")!;
   const last = messages[messages.length - 1];
   const text = last.parts.map((p) => (p.type === "text" ? p.text : "")).join(" ");
   const files = last.parts.filter((p) => p.type === "file");
@@ -16,7 +18,7 @@ export async function POST(req: Request) {
     execute: async ({ writer }) => {
       writer.write({ type: "start" });
       const t0 = performance.now();
-      const r = route({ text, hasImage, hasAudio });
+      const r = route({ text, hasImage, hasAudio, prefer: assistant.prefer });
       const classify: TraceStep = {
         id: "classify",
         task: "Classify request",
@@ -54,7 +56,7 @@ export async function POST(req: Request) {
       let failed = false;
       const result = streamText({
         model: modelFor(r),
-        system: "You are mmhack, a concise, helpful assistant. Prefer short answers with clear structure.",
+        system: `${assistant.system} You are "${assistant.title}" inside mmhack. Prefer short answers with clear structure.`,
         messages: await convertToModelMessages(messages),
         onError: ({ error }) => {
           failed = true;

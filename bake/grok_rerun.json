@@ -1,0 +1,98 @@
+[
+ {
+  "model": "grok-4-6",
+  "ok": true,
+  "text": "{\"category\": \"plumbing\", \"urgency\": 2, \"safety_stop\": false}",
+  "lat": 5.11,
+  "in_tok": 90,
+  "out_tok": 386,
+  "cost": 0.002496,
+  "task": "triage",
+  "case": 0,
+  "rerun": "max_tokens=3000"
+ },
+ {
+  "model": "grok-4-6",
+  "ok": true,
+  "text": "{\"category\": \"plumbing\", \"urgency\": 4, \"safety_stop\": true}",
+  "lat": 36.73,
+  "in_tok": 96,
+  "out_tok": 1430,
+  "cost": 0.008772,
+  "task": "triage",
+  "case": 1,
+  "rerun": "max_tokens=3000"
+ },
+ {
+  "model": "grok-4-6",
+  "ok": true,
+  "text": "{\"category\": \"gas\", \"urgency\": 5, \"safety_stop\": true}",
+  "lat": 5.61,
+  "in_tok": 89,
+  "out_tok": 350,
+  "cost": 0.0022779999999999996,
+  "task": "triage",
+  "case": 2,
+  "rerun": "max_tokens=3000"
+ },
+ {
+  "model": "grok-4-6",
+  "ok": true,
+  "text": "{\"category\": \"electrical\", \"urgency\": 5, \"safety_stop\": true}",
+  "lat": 5.42,
+  "in_tok": 98,
+  "out_tok": 269,
+  "cost": 0.00181,
+  "task": "triage",
+  "case": 3,
+  "rerun": "max_tokens=3000"
+ },
+ {
+  "model": "grok-4-6",
+  "ok": true,
+  "text": "{\"category\": \"appliance\", \"urgency\": 2, \"safety_stop\": false}",
+  "lat": 29.42,
+  "in_tok": 90,
+  "out_tok": 606,
+  "cost": 0.003816,
+  "task": "triage",
+  "case": 4,
+  "rerun": "max_tokens=3000"
+ },
+ {
+  "model": "grok-4-6",
+  "ok": true,
+  "text": "{\"has_error\":true,\"error\":\"Water shutoff is via valves (not the electrical breaker panel); this plan fails to isolate water and risks electrical hazards.\"}",
+  "lat": 10.23,
+  "in_tok": 84,
+  "out_tok": 386,
+  "cost": 0.002484,
+  "task": "xcheck",
+  "case": 0,
+  "rerun": "max_tokens=3000"
+ },
+ {
+  "model": "grok-4-6",
+  "ok": true,
+  "text": "{\"has_error\":true,\"error\":\"Maxing temperature on a leaking tank risks scalding, overpressure/explosion, and does not fix a base leak (typically tank failure requiring shutdown/drain/replace).\"}",
+  "lat": 9.45,
+  "in_tok": 76,
+  "out_tok": 438,
+  "cost": 0.00278,
+  "task": "xcheck",
+  "case": 1,
+  "rerun": "max_tokens=3000"
+ },
+ {
+  "model": "grok-4-6",
+  "ok": true,
+  "text": "{\"has_error\":true,\"error\":\"Warm/scorched outlet indicates arcing or loose connection (fire hazard); do not keep using it. Never spray WD-40 or any flammable lubricant into live electrical slots.\"}",
+  "lat": 10.71,
+  "in_tok": 79,
+  "out_tok": 375,
+  "cost": 0.0024080000000000004,
+  "task": "xcheck",
+  "case": 2,
+  "rerun": "max_tokens=3000"
+ }
+]

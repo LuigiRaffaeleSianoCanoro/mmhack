@@ -31,7 +31,7 @@ export function Composer({
         e.preventDefault();
         submit();
       }}
-      className="rounded-xl border bg-card p-2 transition-colors focus-within:border-mm-accent/50"
+      className="ribbed-glass overflow-hidden rounded-xl border p-2 transition-colors focus-within:border-mm-accent/50"
     >
       {files && files.length > 0 && (
         <div className="flex flex-wrap gap-2 p-1">

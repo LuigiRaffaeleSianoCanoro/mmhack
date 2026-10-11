@@ -2,6 +2,9 @@
 
 Multi-model chatbot scaffold for the Multi Model Hackathon #SFTechWeek. One chat, many models, and every routing decision is visible in the **Routing trace** panel (task, model, why, latency, cost, status), with a human-approval gate for side-effect requests.
 
+## UI
+`/` is a 3D shelf (after press.stripe.com): each assistant is a book. Click one to open its chat at `/a/<slug>`. Heavy film grain and ribbed glass across the system. See docs/brand/DESIGN.md.
+
 ## Stack
 Next.js 16 (App Router) + TypeScript + Tailwind v4 + shadcn/ui (base-nova) + Vercel AI SDK v7 + motion. pnpm.
 
