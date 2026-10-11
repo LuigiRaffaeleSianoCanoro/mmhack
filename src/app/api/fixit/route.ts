@@ -98,21 +98,55 @@ export async function POST(req: Request) {
         : { id: "plan", task: "Write the repair plan", model: "claude-sonnet-5-5", provider: "anthropic", why: "Safety-aware step-by-step planning needs the strongest reasoner.", status: "running" };
       put(plan);
       t = performance.now();
-      const result = streamText({
-        model: anthropic("claude-sonnet-5-5"),
-        system: approved
-          ? "Draft a short, firm, polite urgent repair request from a renter to a landlord: issue, safety risk, request for a licensed pro within 24h, availability placeholder. Under 150 words."
-          : "You are FixIt, a renter repair assistant. Give: 1) Likely cause (1 line). 2) Tools/parts. 3) Numbered steps (max 7) with safety notes. 4) 'Call your landlord if' line. Mention lease limits where relevant. Concise markdown.",
-        prompt: `Report: ${text || "(photo only)"}\nTriage: ${JSON.stringify(triage)}${observed ? `\nPhoto analysis:\n${observed}` : ""}`,
-      });
-      writer.merge(result.toUIMessageStream({ sendStart: false, sendFinish: false }));
+      const system = approved
+        ? "Draft a short, firm, polite urgent repair request from a renter to a landlord: issue, safety risk, request for a licensed pro within 24h, availability placeholder. Under 150 words."
+        : "You are FixIt, a renter repair assistant. Give: 1) Likely cause (1 line). 2) Tools/parts. 3) Numbered steps (max 7) with safety notes. 4) 'Call your landlord if' line. Mention lease limits where relevant. Concise markdown.";
+      const prompt = `Report: ${text || "(photo only)"}\nTriage: ${JSON.stringify(triage)}${observed ? `\nPhoto analysis:\n${observed}` : ""}`;
+      // Stream one model into the UI; returns text + usage, or throws with a sanitized reason.
+      const runPlan = async (model: Parameters<typeof streamText>[0]["model"], textId: string, timeoutMs: number) => {
+        let err: unknown;
+        const r = streamText({ model, system, prompt, abortSignal: AbortSignal.timeout(timeoutMs), onError: ({ error }) => { err = error; } });
+        let out = "";
+        let started = false;
+        for await (const part of r.fullStream) {
+          if (part.type === "text-delta") {
+            if (!started) { writer.write({ type: "text-start", id: textId }); started = true; }
+            out += part.text;
+            writer.write({ type: "text-delta", id: textId, delta: part.text });
+          } else if (part.type === "error") err = part.error;
+        }
+        if (started) writer.write({ type: "text-end", id: textId });
+        if (err || !out) throw err ?? new Error("empty response");
+        return { out, usage: await Promise.resolve(r.totalUsage).catch((): Usage => ({})) };
+      };
+      const reasonOf = (e: unknown) => {
+        const x = e as { statusCode?: number; status?: number; message?: string; name?: string; responseBody?: string };
+        let msg = x?.message ?? String(e);
+        try { const j = JSON.parse(x?.responseBody ?? ""); msg = j?.error?.message ?? msg; } catch {}
+        if (x?.name === "TimeoutError" || x?.name === "AbortError") msg = "timed out";
+        const st = x?.statusCode ?? x?.status;
+        return `${st ? `${st} ` : ""}${msg}`.replace(/sk-[A-Za-z0-9_-]{8,}/g, "[key]").slice(0, 120);
+      };
       let planText = "";
       try {
-        await result.consumeStream();
-        planText = await result.text;
-        done(plan, t, await result.totalUsage);
-      } catch {
-        put({ ...plan, status: "error", latencyMs: Math.round(performance.now() - t) });
+        const r = await runPlan(anthropic("claude-sonnet-5-5"), "plan", 45_000);
+        planText = r.out;
+        done(plan, t, r.usage);
+      } catch (e) {
+        const reason = reasonOf(e);
+        console.error("[fixit] claude plan failed:", reason, (e as { responseBody?: string })?.responseBody?.slice(0, 500));
+        put({ ...plan, status: "error", latencyMs: Math.round(performance.now() - t), why: `Claude failed: ${reason}` });
+        const fb: TraceStep = { ...plan, id: "plan-fallback", model: "gpt-5", provider: "neon-gateway", why: `fallback: gpt-5, reason: ${reason}`, status: "running" };
+        put(fb);
+        t = performance.now();
+        try {
+          const r = await runPlan(gateway.chat("gpt-5"), "plan-fb", 90_000);
+          planText = r.out;
+          done(fb, t, r.usage);
+        } catch (e2) {
+          console.error("[fixit] fallback plan failed:", reasonOf(e2));
+          put({ ...fb, status: "error", latencyMs: Math.round(performance.now() - t), why: `fallback: gpt-5 also failed: ${reasonOf(e2)}` });
+        }
       }
 
       // 4. Cross-check
