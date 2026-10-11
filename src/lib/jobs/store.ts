@@ -33,7 +33,7 @@ export type FixitJob = {
 export const STORE_KIND: "anbaric-cloud" | "local-fallback" =
   process.env.ANBARIC_JOB_PERSISTENCE_TYPE === "cloud" ? "anbaric-cloud" : "local-fallback";
 // Honest label: persistence is always the instance file store + signed snapshot; Anbaric supplies the state/actor contracts.
-export const STORE_LABEL = STORE_KIND === "anbaric-cloud" ? "Anbaric contracts · instance store" : "Local fallback (not Anbaric)";
+export const STORE_LABEL = STORE_KIND === "anbaric-cloud" ? "Anbaric contracts · instance store" : "Anbaric state model · signed job (cloud sync off)";
 
 const DIR = process.env.FIXIT_DATA_DIR ?? (process.env.VERCEL ? "/tmp/fixit-jobs" : path.join(/*turbopackIgnore: true*/ process.cwd(), ".data", "jobs"));
 const file = (id: string, ext = "json") => path.join(/*turbopackIgnore: true*/ DIR, `${id.replace(/[^a-zA-Z0-9-]/g, "")}.${ext}`);
