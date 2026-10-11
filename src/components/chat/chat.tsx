@@ -62,9 +62,35 @@ export function Chat({ slug, profileUid, sessionId, initialMessages, onMessages,
     if (!busy && messages.length) onMessages?.(messages);
   }, [busy, messages, onMessages]);
   const endRef = useRef<HTMLDivElement>(null);
+  // Hazard pacing: new safety-stop replies show the evacuation alert alone for 2s, then the text types in
+  // word by word (~250 wpm) while the alert stays in view; other cards appear after. Reduced motion: no pacing.
+  const isHazard = (m: MMMessage) => m.role === "assistant" && m.parts.some((p) => p.type === "data-trace" && p.data.id === "safety");
+  /* eslint-disable react-hooks/set-state-in-effect -- timed reveal driven by stream status */
+  const seen = useRef(new Set((initialMessages ?? []).map((m) => m.id)));
+  const [pace, setPace] = useState<{ id: string; words: number } | null>(null);
+  const evacRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    const last = messages.at(-1);
+    if (!last || seen.current.has(last.id)) return;
+    if (busy && isHazard(last) && !reduce) { setPace((p) => (p?.id === last.id ? p : { id: last.id, words: -1 })); return; }
+    if (busy) return;
+    seen.current.add(last.id);
+    if (!isHazard(last) || reduce) { setPace(null); return; }
+    const total = last.parts.reduce((a, p) => a + (p.type === "text" ? p.text.split(DETAILS)[0].split(/\s+/).filter(Boolean).length : 0), 0);
+    setPace({ id: last.id, words: -1 });
+    let n = 0, iv: ReturnType<typeof setInterval> | undefined;
+    const t = setTimeout(() => {
+      iv = setInterval(() => { n += 1; setPace(n >= total ? null : { id: last.id, words: n }); if (n >= total) clearInterval(iv); }, 240);
+    }, 2000);
+    return () => { clearTimeout(t); if (iv) clearInterval(iv); };
+  }, [messages, busy, reduce]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    const last = messages.at(-1);
+    if (pace || (last && isHazard(last) && !reduce)) { evacRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
     endRef.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "end" });
-  }, [messages, reduce]);
+  }, [messages, reduce, pace]);
+  const typed = (text: string, words: number) => { const w = text.split(/(\s+)/); return w.slice(0, Math.max(0, words) * 2).join(""); };
 
   const stepsOf = (m: MMMessage): TraceStep[] => {
     const d = decisions[m.id];
@@ -138,9 +164,13 @@ export function Chat({ slug, profileUid, sessionId, initialMessages, onMessages,
                   {m.role === "assistant" && <Mascot state={mascotStateOf(m)} size={36} className="mt-0.5" />}
                   <div className={cn("flex min-w-0 flex-1 flex-col gap-2", m.role === "user" && "items-end")}>
                   {m.role === "assistant" && m.parts.some((p) => p.type === "data-trace" && p.data.id === "safety") && (
-                    <EvacCard gas={m.parts.some((p) => p.type === "text" && /gas leak/i.test(p.text))} />
+                    <div ref={m.id === messages.at(-1)?.id ? evacRef : undefined} className="scroll-mt-4"><EvacCard gas={m.parts.some((p) => p.type === "text" && /gas leak/i.test(p.text))} /></div>
                   )}
                   {m.parts.map((p, i) => {
+                    if (pace?.id === m.id) {
+                      if (p.type !== "text" || pace.words < 0) return null;
+                      return <div key={i} className="max-w-[85%]" aria-live="polite"><Markdown>{typed(p.text.split(DETAILS)[0], pace.words)}</Markdown></div>;
+                    }
                     if (p.type === "text" && m.role === "assistant")
                       {
                       const [head, more] = p.text.split(DETAILS);
