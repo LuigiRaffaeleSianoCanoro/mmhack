@@ -1,0 +1,15 @@
+
+  ✔ Environment OK
+  ○ Analyzing repository...
+  ✔ Analysis complete (fresh)
+◆ Single project detected
+  mmhack
+    Languages:  ts (1,551 loc), py (138 loc), js (15 loc)
+    Frameworks: nextjs, react, tailwindcss
+    Manager:    pnpm
+    Deps:       17 prod, 8 dev
+╭─ Error ──────────────────────────────────────────────────────────────────────╮
+│                                                                              │
+│ Error: Terminal I/O error: single selection failed: IO error: not a terminal │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯

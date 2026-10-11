@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node -e \"const f=require('fs');f.mkdirSync('public/adr',{recursive:true});for(const n of f.readdirSync('docs/adr'))if(/^ADR-.*\\\\.md$/.test(n))f.copyFileSync('docs/adr/'+n,'public/adr/'+n.replace(/\\\\.md$/,'.txt'))\" && next build",
     "start": "next start",
     "lint": "eslint"
   },

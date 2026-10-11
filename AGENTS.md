@@ -7,3 +7,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Architecture decisions
+
+Read before changing routing or actions: [docs/adr/](docs/adr/README.md).
+- ADR-001 routed pipeline · ADR-002 model routing table (Grok removed, Jev optional/unmeasured) · ADR-003 approval and governed-action boundary.
