@@ -32,7 +32,18 @@ export function ApprovalCard({
           <CardDescription>{request.reason}</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="rounded-md bg-background/60 p-2 font-mono text-xs text-muted-foreground whitespace-pre-wrap break-words max-h-40 overflow-y-auto">{request.prompt}</p>
+          {!request.outbound && <p className="rounded-md bg-background/60 p-2 font-mono text-xs text-muted-foreground whitespace-pre-wrap break-words max-h-40 overflow-y-auto">{request.prompt}</p>}
+          {request.outbound && (
+            <div className="mt-2 rounded-md border bg-background/60 p-2 text-xs">
+              <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                {request.outbound.mode === "send" ? "Governed send · Swytchcode" : "Preview / export only"} · {request.outbound.tool}
+              </p>
+              <p className="mt-1 text-muted-foreground">{request.outbound.note}</p>
+              <p className="mt-1"><b>To:</b> {request.outbound.to}</p>
+              <p><b>Subject:</b> {request.outbound.subject}</p>
+              <p className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap break-words text-muted-foreground">{request.outbound.body}</p>
+            </div>
+          )}
           {request.storeLabel && <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Audited job · {request.storeLabel}</p>}
         </CardContent>
         <CardFooter className="gap-2">
@@ -40,7 +51,7 @@ export function ApprovalCard({
             <span className="text-xs text-muted-foreground">{decided === "approved" ? "Approved. Running." : "Rejected. Nothing ran."}</span>
           ) : (
             <>
-              <Button size="sm" onClick={() => onDecide("approved")}>Approve</Button>
+              <Button size="sm" onClick={() => onDecide("approved")}>{request.outbound?.mode === "send" ? "Approve & send" : "Approve"}</Button>
               <Button size="sm" variant="ghost" onClick={() => onDecide("rejected")}>Reject</Button>
             </>
           )}
