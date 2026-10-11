@@ -73,8 +73,6 @@
   --glass-blur: 14px;
   /* Shelf */
   --shelf-perspective: 1600px;
-  --book-h: 64px;
-  --book-depth: 96px;
 
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
@@ -93,7 +91,7 @@
   --secondary: oklch(0.22 0.006 285);
   --secondary-foreground: oklch(0.96 0.003 285);
   --muted: oklch(0.2 0.005 285);
-  --muted-foreground: oklch(0.66 0.01 285);
+  --muted-foreground: oklch(0.72 0.01 285);
   --accent: oklch(0.22 0.006 285);
   --accent-foreground: oklch(0.96 0.003 285);
   --destructive: oklch(0.68 0.2 22);
@@ -198,55 +196,17 @@
 }
 .ribbed-glass-h::before { background-image: repeating-linear-gradient(0deg, var(--rib-light) 0, transparent calc(var(--rib-width) * 0.35), var(--rib-dark) calc(var(--rib-width) * 0.85), var(--rib-light) var(--rib-width)); }
 
-/* ---------- Books: AI-generated material textures (gpt-6-astra, Neon gateway), grayscale + seamless,
-   tinted per book with blend modes so one texture serves every color. ---------- */
-.book-spine, .book-cover {
-  background-size: 220px;
-  background-blend-mode: overlay;
-  border-radius: 2px 3px 3px 2px;
-}
-.book-spine {
-  /* worn edges + rounded spine shading + corner rub */
-  box-shadow:
-    inset 0 1px 0 oklch(1 0 0 / 16%),
-    inset 0 -1px 0 oklch(0 0 0 / 50%),
-    inset 0 10px 14px -10px oklch(1 0 0 / 14%),
-    inset 0 -14px 18px -8px oklch(0 0 0 / 40%),
-    0 1px 0 oklch(0 0 0 / 60%);
-}
-.book-spine::after {
-  content: "";
-  position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
-  background:
-    radial-gradient(18px 14px at 0 0, oklch(1 0 0 / 14%), transparent),
-    radial-gradient(18px 14px at 100% 100%, oklch(1 0 0 / 10%), transparent),
-    radial-gradient(22px 16px at 100% 0, oklch(1 0 0 / 8%), transparent),
-    linear-gradient(90deg, oklch(0 0 0 / 22%), transparent 6%, transparent 94%, oklch(0 0 0 / 26%));
-  mix-blend-mode: soft-light;
-}
-.book-spine-leather { background-size: 160px; }
-/* embossed raised bands near each end of the spine */
-.book-band {
-  position: absolute; top: 4px; bottom: 4px; width: 5px; border-radius: 2px;
-  background: linear-gradient(90deg, oklch(1 0 0 / 14%), oklch(0 0 0 / 0%) 40%, oklch(0 0 0 / 35%));
-  box-shadow: 9px 0 0 -1px oklch(0 0 0 / 12%);
-}
-/* foil-stamped title: metallic sheen clipped to text + a pressed-in shadow */
-.book-foil {
-  background-image: linear-gradient(100deg, oklch(0.74 0.11 80) 0%, oklch(0.9 0.08 88) 35%, oklch(0.7 0.11 78) 65%, oklch(0.86 0.09 86) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  filter: drop-shadow(0 -0.5px 0 oklch(0 0 0 / 55%)) drop-shadow(0 0.5px 0 oklch(1 0 0 / 18%));
-}
-.book-deboss { text-shadow: 0 -1px 0 oklch(0 0 0 / 40%), 0 1px 0 oklch(1 0 0 / 12%); }
-/* page block end: paper texture with board edges top and bottom */
-.book-end {
-  background:
-    linear-gradient(180deg, var(--board) 0 3px, transparent 3px calc(100% - 3px), var(--board) calc(100% - 3px)),
-    linear-gradient(90deg, oklch(0 0 0 / 12%), transparent 30%, oklch(0 0 0 / 25%)),
-    url("/textures/pages.webp") center / 120px auto;
-}
 
-/* Cloth texture (legacy, used by small spine chips) */
-.cloth { background-image: url("/textures/cloth.png"); background-size: 128px; background-blend-mode: soft-light; }
+/* Brick wall backdrop (FixIt). Dark, desaturated, vignetted; content sits on near-opaque panels. */
+.brick-bg {
+  position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(120% 90% at 40% 35%, oklch(0.125 0.005 300 / 55%) 0%, oklch(0.125 0.005 300 / 80%) 60%, oklch(0.1 0.005 300 / 96%) 100%),
+    image-set(url("/bg/brick-960.webp") 1x, url("/bg/brick-1600.webp") 2x) right bottom / cover no-repeat,
+    var(--background);
+}
+@media (min-width: 1024px) {
+  .brick-bg { background:
+    radial-gradient(120% 90% at 40% 35%, oklch(0.125 0.005 300 / 50%) 0%, oklch(0.125 0.005 300 / 75%) 60%, oklch(0.1 0.005 300 / 95%) 100%),
+    url("/bg/brick-1600.webp") right bottom / cover no-repeat, var(--background); }
+}

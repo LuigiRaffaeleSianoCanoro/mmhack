@@ -21,7 +21,16 @@ export type ApprovalRequest = {
   prompt: string;
 };
 
+export type FixitCtx = {
+  stage: "confirm" | "clarify" | "done";
+  lang: string;
+  summary: string;
+  observed: string;
+  triage: { category: string; urgency: string; hazard: boolean; summary: string };
+  pending: { q: string; chips: string[] }[];
+};
+
 export type MMMessage = UIMessage<
   never,
-  { trace: TraceStep; approval: ApprovalRequest }
+  { trace: TraceStep; approval: ApprovalRequest; chips: { options: string[] }; ctx: FixitCtx }
 >;
