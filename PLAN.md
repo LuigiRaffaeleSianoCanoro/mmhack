@@ -1,5 +1,8 @@
 # PLAN — 3 ideas + recommended
 
+> **Superseded for routing by [docs/adr/ADR-002](docs/adr/ADR-002-model-routing.md)** (measured Oct 11). Grok is removed, Opus is not a default, and Jev is optional and unmeasured (the 70–500 ms figure below is the vendor claim, not a measurement).
+
+
 Constraints: judge tries in <30 s from URL/QR, no login; chat UI with live ROUTING TRACE (model, why, latency, $); multimodal; human approval; every sponsor meaningful. Not: vlog editor, inbox copilot, event-to-content.
 
 ## Idea A (RECOMMENDED): "FixIt" — snap-a-problem home/landlord/repair concierge

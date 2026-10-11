@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ChevronDown, Clock, Coins, Info, Plug, TriangleAlert, Loader2 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { TraceStep } from "@/lib/trace";
+import { whyLink } from "@/lib/adr";
 import { cn } from "@/lib/utils";
 
 const LABEL: Record<string, string> = { triage: "Triaged", vision: "Photo", confirm: "Confirmed", understand: "Understood", plan: "Plan", "plan-fallback": "Fallback", check: "Checked", followup: "Answered", safety: "Safety", ask: "Asked" };
@@ -64,7 +65,7 @@ export function TraceInline({ steps }: { steps: TraceStep[] }) {
       {open && (
         <ul className="mt-2 space-y-1 border-t border-border pt-2">
           {steps.map((s) => (
-            <li key={s.id} className="flex gap-2"><span className="w-20 shrink-0 text-muted-foreground">{LABEL[s.id] ?? s.task}</span><span className="text-foreground/90">{s.why}</span></li>
+            <li key={s.id} className="flex gap-2"><span className="w-20 shrink-0 text-muted-foreground">{LABEL[s.id] ?? s.task}</span><span className="text-foreground/90">{s.why}{whyLink(s.id) && (<> <a href={whyLink(s.id)!.href} target="_blank" rel="noreferrer" className="underline underline-offset-2 text-muted-foreground hover:text-foreground">Why this model? ({whyLink(s.id)!.adr})</a></>)}</span></li>
           ))}
         </ul>
       )}
