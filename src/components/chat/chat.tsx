@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { motion, useReducedMotion } from "motion/react";
+import { Mascot, type MascotState } from "@/components/fixit/mascot";
 import Link from "next/link";
 import { FileAudio } from "lucide-react";
 import { getAssistant } from "@/lib/assistants";
@@ -27,6 +28,13 @@ export function Chat({ slug, sessionId, initialMessages, onMessages, headerLeft 
     transport: new DefaultChatTransport({ api: assistant.api ?? "/api/chat", body: { assistant: slug } }),
   });
   const busy = status === "submitted" || status === "streaming";
+  const mascotStateOf = (m: MMMessage): MascotState => {
+    const last = m.id === messages.at(-1)?.id;
+    if (m.parts.some((p) => p.type === "data-approval") && !decisions[m.id]) return "alert";
+    if (last && busy) return "thinking";
+    if (last && m.parts.some((p) => p.type === "text")) return "happy";
+    return "idle";
+  };
   useEffect(() => {
     if (!busy && messages.length) onMessages?.(messages);
   }, [busy, messages, onMessages]);
@@ -64,7 +72,8 @@ export function Chat({ slug, sessionId, initialMessages, onMessages, headerLeft 
           <div className="min-h-0 flex-1 overflow-y-auto">
             <div className="mx-auto flex min-h-full max-w-2xl flex-col gap-5 bg-background/88 px-4 py-6 shadow-[0_0_60px_30px_oklch(0.125_0.005_300/0.6)]">
               {messages.length === 0 && (
-                <div className="flex flex-col gap-6 pt-[12vh]">
+                <div className="flex flex-col gap-6 pt-[8vh]">
+                  <Mascot state="idle" size={112} className="-ml-3" />
                   <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-mm-accent">{assistant.activity} / by {assistant.author}</p>
                   <h1 className="font-display text-4xl font-bold uppercase leading-none tracking-tight sm:text-6xl">{assistant.title}</h1>
                   <p className="max-w-md font-serif text-lg italic text-muted-foreground">{assistant.blurb}</p>
@@ -100,8 +109,10 @@ export function Chat({ slug, sessionId, initialMessages, onMessages, headerLeft 
                   initial={reduce ? false : { opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
-                  className={cn("flex flex-col gap-2", m.role === "user" && "items-end")}
+                  className={cn("flex gap-3", m.role === "user" && "justify-end")}
                 >
+                  {m.role === "assistant" && <Mascot state={mascotStateOf(m)} size={36} className="mt-0.5" />}
+                  <div className={cn("flex min-w-0 flex-1 flex-col gap-2", m.role === "user" && "items-end")}>
                   {m.parts.map((p, i) => {
                     if (p.type === "text" && m.role === "assistant")
                       {
@@ -157,9 +168,15 @@ export function Chat({ slug, sessionId, initialMessages, onMessages, headerLeft 
                   {m.role === "assistant" && busy && m.id === messages.at(-1)?.id && !m.parts.some((p) => p.type === "text") && !m.parts.some((p) => p.type === "data-approval") && (
                     <span className="h-4 w-16 animate-pulse rounded bg-muted" />
                   )}
+                  </div>
                 </motion.div>
               ))}
-              {status === "submitted" && messages.at(-1)?.role === "user" && <span className="h-4 w-16 animate-pulse rounded bg-muted" />}
+              {status === "submitted" && messages.at(-1)?.role === "user" && (
+                <div className="flex items-center gap-3">
+                  <Mascot state="thinking" size={36} />
+                  <span className="h-4 w-16 animate-pulse rounded bg-muted" />
+                </div>
+              )}
               {error && <p className="text-sm text-destructive">Something failed: {error.message}</p>}
               <div ref={endRef} />
             </div>
