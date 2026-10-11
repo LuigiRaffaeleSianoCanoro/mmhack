@@ -19,6 +19,13 @@ export type ApprovalRequest = {
   action: string;
   reason: string;
   prompt: string;
+  /** AWS-54: audited job bound to the server session + canonical draft hash. */
+  jobId?: string;
+  draftHash?: string;
+  store?: "anbaric-cloud" | "local-fallback";
+  storeLabel?: string;
+  /** Server-signed job snapshot so the audit survives serverless instance changes. */
+  jobToken?: string;
 };
 
 export type FixitCtx = {
@@ -32,5 +39,5 @@ export type FixitCtx = {
 
 export type MMMessage = UIMessage<
   never,
-  { trace: TraceStep; approval: ApprovalRequest; chips: { options: string[] }; ctx: FixitCtx; email: { subject: string } }
+  { trace: TraceStep; approval: ApprovalRequest; job: { jobId: string; jobToken?: string }; chips: { options: string[] }; ctx: FixitCtx; email: { subject: string } }
 >;

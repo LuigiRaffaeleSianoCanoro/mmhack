@@ -16,6 +16,7 @@
     "@composio/core": "^0.22.0",
     "@typesafe-ai/sdk": "0.6.0",
     "ai": "^7.0.137",
+    "anbaric-tsapi": "1.68.2",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",
     "lucide-react": "^1.55.0",
