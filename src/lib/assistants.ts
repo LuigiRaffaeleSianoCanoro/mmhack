@@ -14,9 +14,27 @@ export type Assistant = {
   system: string;
   prefer?: "reason" | "fast";
   starters: string[];
+  api?: string;
+  sampleImage?: string;
 };
 
 export const ASSISTANTS: Assistant[] = [
+  {
+    slug: "fixit",
+    title: "FixIt",
+    author: "five models, one plan",
+    activity: "Home repair",
+    blurb: "Snap the problem. Triage, vision, a repair plan and an independent safety check. Hazards stop for your approval.",
+    spine: "oklch(0.5 0.13 45)",
+    ink: "oklch(0.96 0.03 80)",
+    type: "display",
+    material: "leather",
+    foil: true,
+    system: "FixIt renter repair assistant.",
+    api: "/api/fixit",
+    sampleImage: "/samples/faucet.jpg",
+    starters: ["My kitchen faucet drips from the base of the spout.", "I smell gas near the stove."],
+  },
   {
     slug: "router",
     title: "The Router",

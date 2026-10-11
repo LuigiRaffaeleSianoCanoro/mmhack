@@ -4,6 +4,8 @@ import type { LanguageModel } from "ai";
 
 /** USD per token, from the Neon AI Gateway /v1/models listing (Oct 2026). */
 const PRICING: Record<string, [number, number]> = {
+  "gpt-5-mini": [0.00000025, 0.000002],
+  "gpt-5": [0.00000125, 0.00001],
   "gemini-3-1-flash-lite": [0.00000025, 0.0000015],
   "gemini-3-flash": [0.0000005, 0.000003],
   "gpt-5-4-mini": [0.00000075, 0.0000045],

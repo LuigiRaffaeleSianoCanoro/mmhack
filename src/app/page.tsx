@@ -1,5 +1,5 @@
-import { Shelf } from "@/components/shelf/shelf";
+import { Chat } from "@/components/chat/chat";
 
 export default function Page() {
-  return <Shelf />;
+  return <Chat slug="fixit" />;
 }

@@ -21,7 +21,7 @@ export function Chat({ slug }: { slug: string }) {
   const [decisions, setDecisions] = useState<Record<string, "approved" | "rejected">>({});
   const { messages, sendMessage, status, stop, error } = useChat<MMMessage>({
     id: `mmhack-${slug}`,
-    transport: new DefaultChatTransport({ api: "/api/chat", body: { assistant: slug } }),
+    transport: new DefaultChatTransport({ api: assistant.api ?? "/api/chat", body: { assistant: slug } }),
   });
   const busy = status === "submitted" || status === "streaming";
   const endRef = useRef<HTMLDivElement>(null);
@@ -49,7 +49,7 @@ export function Chat({ slug }: { slug: string }) {
   return (
     <div className="flex h-dvh flex-col">
       <header className="ribbed-glass relative z-30 flex h-12 shrink-0 items-center gap-3 border-b px-4">
-        <Link href="/" className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground" aria-label="Back to the shelf">
+        <Link href="/shelf" className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground" aria-label="Back to the shelf">
           <ArrowLeft className="size-4" />
           <span className="font-display text-sm font-bold uppercase tracking-[0.2em] text-foreground">
             mm<span className="text-mm-accent">hack</span>
@@ -79,6 +79,23 @@ export function Chat({ slug }: { slug: string }) {
                   <h1 className="font-display text-4xl font-bold uppercase leading-none tracking-tight sm:text-6xl">{assistant.title}</h1>
                   <p className="max-w-md font-serif text-lg italic text-muted-foreground">{assistant.blurb}</p>
                   <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                    {assistant.sampleImage && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-auto justify-start gap-2 py-1.5 text-left"
+                        onClick={async () => {
+                          const blob = await (await fetch(assistant.sampleImage!)).blob();
+                          const dt = new DataTransfer();
+                          dt.items.add(new File([blob], "faucet.jpg", { type: blob.type || "image/jpeg" }));
+                          sendMessage({ text: "This is leaking. What do I do?", files: dt.files });
+                        }}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={assistant.sampleImage} alt="" className="size-8 rounded object-cover" />
+                        Try the sample photo
+                      </Button>
+                    )}
                     {assistant.starters.map((s) => (
                       <Button key={s} variant="outline" size="sm" className="h-auto justify-start whitespace-normal py-2 text-left" onClick={() => sendMessage({ text: s })}>
                         {s}
