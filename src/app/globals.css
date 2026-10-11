@@ -220,3 +220,7 @@
 .chat-legible :is(input, textarea, button, img) { text-shadow: none; }
 .ribbed-glass.chat-input-glass { background-color: oklch(0.125 0.005 300 / 0.45); -webkit-backdrop-filter: blur(6px) saturate(1.1); backdrop-filter: blur(6px) saturate(1.1); }
 .chat-input-glass textarea { text-shadow: 0 1px 2px oklch(0 0 0 / 0.85); }
+
+/* Reading pace (PACING.md §2): static caret after revealing text; none under reduced motion. */
+.paced::after { content: ""; display: inline-block; width: 2px; height: 1em; margin-left: 2px; vertical-align: -0.15em; background: var(--mm-accent); }
+@media (prefers-reduced-motion: reduce) { .paced::after { display: none; } }

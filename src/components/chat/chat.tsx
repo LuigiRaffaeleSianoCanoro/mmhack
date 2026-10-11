@@ -18,6 +18,7 @@ import { ProsCard } from "./pros-card";
 import { inferTrade, recommendsPro } from "@/lib/pros/shared";
 import { useAuth } from "@/components/fixit/auth";
 import { Markdown } from "./markdown";
+import { Delayed, PacedText, isPacedDone, skipAll } from "./pacing";
 import { Composer } from "./composer";
 import { TraceInline } from "./trace-inline";
 import type { TraceStep } from "@/lib/trace";
@@ -87,11 +88,51 @@ export function Chat({ slug, profileUid, sessionId, initialMessages, onMessages,
     return () => { clearTimeout(t); if (iv) clearInterval(iv); };
   }, [messages, busy, reduce]);
   /* eslint-enable react-hooks/set-state-in-effect */
+  // Reading pace + scroll (PACING.md §2, §4): follow new content only while the reader is at the bottom.
+  const [history] = useState(() => new Set((initialMessages ?? []).map((m) => m.id)));
+  const [, bump] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const stuck = useRef(true);
+  const userAt = useRef(0);
+  const hazardLast = useRef(false);
+  const [pill, setPill] = useState<null | "new" | "alert">(null);
+  const lastMsg = messages.at(-1);
+  const hazardNow = !!lastMsg && isHazard(lastMsg);
+  useEffect(() => { hazardLast.current = hazardNow; });
   useEffect(() => {
-    const last = messages.at(-1);
-    if (pace || (last && isHazard(last))) { evacRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
-    endRef.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "end" });
-  }, [messages, reduce, pace]);
+    const el = scrollRef.current, c = contentRef.current;
+    if (!el || !c) return;
+    const onScroll = () => { stuck.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80; if (stuck.current) setPill((p) => (p === "new" ? null : p)); };
+    const onUser = () => { userAt.current = Date.now(); };
+    const ro = new ResizeObserver(() => { if (hazardLast.current) return; if (stuck.current) el.scrollTop = el.scrollHeight; else setPill((p) => p ?? "new"); });
+    ro.observe(c);
+    el.addEventListener("scroll", onScroll, { passive: true });
+    for (const ev of ["wheel", "touchmove", "keydown"]) el.addEventListener(ev, onUser, { passive: true });
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") skipAll(); };
+    window.addEventListener("keydown", onKey);
+    return () => { ro.disconnect(); el.removeEventListener("scroll", onScroll); for (const ev of ["wheel", "touchmove", "keydown"]) el.removeEventListener(ev, onUser); window.removeEventListener("keydown", onKey); };
+  }, []);
+  // Sending means "I'm back": jump to the bottom.
+  const lastUserId = [...messages].reverse().find((m) => m.role === "user")?.id;
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!lastUserId || !el || history.has(lastUserId)) return;
+    stuck.current = true;
+    el.scrollTop = el.scrollHeight;
+  }, [lastUserId, history]);
+  // Hazard: bring the alert into view unless the reader scrolled in the last 5s; then offer a pill instead.
+  useEffect(() => {
+    if (!(pace || hazardNow)) return;
+    if (Date.now() - userAt.current > 5000) evacRef.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+    else setPill("alert");
+  }, [messages, reduce, pace, hazardNow]);
+  const paceable = (m: MMMessage) => !reduce && m.role === "assistant" && !history.has(m.id) && !isHazard(m) && m.id === messages.at(-1)?.id;
+  const textKeys = (m: MMMessage) => m.parts.flatMap((p, i) => (p.type === "text" ? [`${m.id}:${i}`] : []));
+  const pacing = (m: MMMessage) => paceable(m) && textKeys(m).some((k) => !isPacedDone(k));
+  const revealing = !!lastMsg && pacing(lastMsg);
+  // Never hide failure: show buffered text at once on error.
+  useEffect(() => { if (error) skipAll(); }, [error]);
   const typed = (text: string, words: number) => { const w = text.split(/(\s+)/); return w.slice(0, Math.max(0, words) * 2).join(""); };
 
   const stepsOf = (m: MMMessage): TraceStep[] => {
@@ -121,9 +162,9 @@ export function Chat({ slug, profileUid, sessionId, initialMessages, onMessages,
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <main className="flex min-w-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            <div className="mx-auto flex min-h-full max-w-2xl flex-col gap-5 chat-legible bg-background/50 px-4 py-6 backdrop-blur-[3px] shadow-[0_0_60px_30px_oklch(0.125_0.005_300/0.3)]">
+        <main className="relative flex min-w-0 flex-1 flex-col">
+          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
+            <div ref={contentRef} className="mx-auto flex min-h-full max-w-2xl flex-col gap-5 chat-legible bg-background/50 px-4 py-6 backdrop-blur-[3px] shadow-[0_0_60px_30px_oklch(0.125_0.005_300/0.3)]">
               {messages.length === 0 && (
                 <div className="flex flex-col gap-6 pt-[8vh]">
                   <Mascot state="idle" size={112} className="-ml-3" />
@@ -159,9 +200,9 @@ export function Chat({ slug, profileUid, sessionId, initialMessages, onMessages,
               {messages.map((m) => (
                 <motion.div
                   key={m.id}
-                  initial={reduce ? false : { opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+                  initial={reduce || m.role === "user" ? false : { opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.15, ease: [0.23, 1, 0.32, 1] }}
                   className={cn("flex gap-3", m.role === "user" && "justify-end")}
                 >
                   {m.role === "assistant" && <Mascot state={mascotStateOf(m)} size={36} className="mt-0.5" />}
@@ -174,18 +215,25 @@ export function Chat({ slug, profileUid, sessionId, initialMessages, onMessages,
                       if (p.type !== "text" || pace.words < 0) return null;
                       return <div key={i} className="max-w-[85%]" aria-live="polite"><Markdown>{typed(p.text.split(DETAILS)[0], pace.words)}</Markdown></div>;
                     }
+                    if (pacing(m) && p.type !== "text" && p.type !== "file") return null;
                     if (p.type === "text" && m.role === "assistant")
                       {
                       const [head, more] = p.text.split(DETAILS);
+                      const key = `${m.id}:${i}`;
+                      const on = paceable(m);
+                      // One focus at a time: a later text part waits for the earlier ones.
+                      if (on && textKeys(m).slice(0, textKeys(m).indexOf(key)).some((k) => !isPacedDone(k))) return null;
+                      const fin = !(busy && m.id === messages.at(-1)?.id) || more !== undefined || textKeys(m).at(-1) !== key;
                       return (
                         <div key={i} className="max-w-[85%]">
-                          <Markdown>{head}</Markdown>
-                          {more?.trim() && (
-                            <details className="mt-2 rounded-md border border-border bg-card/80 px-3 py-2 text-sm">
-                              <summary className="cursor-pointer text-mm-accent">Show details</summary>
-                              <div className="mt-2"><Markdown>{more}</Markdown></div>
-                            </details>
-                          )}
+                          <PacedText id={key} text={head} finished={fin} enabled={on} onDone={() => bump((x) => x + 1)}>
+                            {() => more?.trim() && (
+                              <details className="mt-2 rounded-md border border-border bg-card/80 px-3 py-2 text-sm">
+                                <summary className="cursor-pointer text-mm-accent">Show details</summary>
+                                <div className="mt-2"><Markdown>{more}</Markdown></div>
+                              </details>
+                            )}
+                          </PacedText>
                         </div>
                       );
                     }
@@ -249,26 +297,40 @@ export function Chat({ slug, profileUid, sessionId, initialMessages, onMessages,
                       ) : null;
                     return null;
                   })}
-                  {m.role === "assistant" && <TraceFor m={m} steps={stepsOf(m)} />}
-                  {m.role === "assistant" && !(busy && m.id === messages.at(-1)?.id) && pace?.id !== m.id && <ProsFor m={m} messages={messages} zip={profileUid ? loadProfile(profileUid)?.zip ?? "" : ""} />}
+                  {m.role === "assistant" && !pacing(m) && <TraceFor m={m} steps={stepsOf(m)} />}
+                  {m.role === "assistant" && !(busy && m.id === messages.at(-1)?.id) && pace?.id !== m.id && !pacing(m) && <ProsFor m={m} messages={messages} zip={profileUid ? loadProfile(profileUid)?.zip ?? "" : ""} />}
                   {m.role === "assistant" && busy && m.id === messages.at(-1)?.id && !m.parts.some((p) => p.type === "text") && !m.parts.some((p) => p.type === "data-approval") && (
-                    <span className="h-4 w-16 animate-pulse rounded bg-muted" />
+                    <Delayed ms={300}><span className="h-4 w-16 animate-pulse rounded bg-muted" /></Delayed>
                   )}
                   </div>
                 </motion.div>
               ))}
               {status === "submitted" && messages.at(-1)?.role === "user" && (
-                <div className="flex items-center gap-3">
-                  <Mascot state="thinking" size={36} />
-                  <span className="h-4 w-16 animate-pulse rounded bg-muted" />
-                </div>
+                <Delayed ms={300}>
+                  <div className="flex items-center gap-3" aria-live="polite">
+                    <Mascot state="thinking" size={36} />
+                    <span className="h-4 w-16 animate-pulse rounded bg-muted" />
+                    <span className="sr-only">FixIt is thinking…</span>
+                  </div>
+                </Delayed>
               )}
               {error && <p className="text-sm text-destructive">Something failed: {error.message}</p>}
               <div ref={endRef} />
             </div>
           </div>
           <div className="mx-auto w-full max-w-2xl px-4 pb-4">
-            <Composer busy={busy} onStop={stop} onSend={(text, files) => sendMessage({ text, files })} />
+            <div className="pointer-events-none relative z-20 -mt-12 mb-2 flex h-10 items-center justify-center gap-2">
+              {pill === "alert" && (
+                <Button size="sm" className="pointer-events-auto rounded-full bg-red-600 text-white hover:bg-red-500" onClick={() => { setPill(null); evacRef.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" }); }}>⚠ Safety alert ↓</Button>
+              )}
+              {pill === "new" && (
+                <Button size="sm" variant="outline" className="pointer-events-auto rounded-full bg-card" onClick={() => { setPill(null); stuck.current = true; scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: reduce ? "auto" : "smooth" }); }}>↓ New</Button>
+              )}
+              {revealing && (
+                <Button size="sm" variant="ghost" className="pointer-events-auto ml-auto rounded-full bg-card/80 text-xs" onClick={skipAll}>Show all</Button>
+              )}
+            </div>
+            <Composer busy={busy} onStop={() => { skipAll(); stop(); }} onSend={(text, files) => { skipAll(); sendMessage({ text, files }); }} />
           </div>
         </main>
       </div>
