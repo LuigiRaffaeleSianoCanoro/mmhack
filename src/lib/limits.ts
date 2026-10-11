@@ -3,6 +3,7 @@
 // counts separately and resets on cold start). Not a substitute for a durable rate limiter.
 
 export const MAX_IMAGES = 4;
+export const MAX_VIDEO_FRAMES = 5; // a video arrives as 5 client-extracted JPEG frames
 export const MAX_IMAGE_BYTES = 4 * 1024 * 1024; // decoded bytes per image
 export const MAX_BODY_BYTES = 4_400_000; // just under Vercel's 4.5 MB request cap
 
@@ -42,8 +43,9 @@ export function dataUrlBytes(url: string): number | null {
   return m[1] ? Math.floor((body * 3) / 4) : body;
 }
 
-export function checkImages(urls: string[]): string | null {
-  if (urls.length > MAX_IMAGES) return `Please send at most ${MAX_IMAGES} photos at a time.`;
+export function checkImages(urls: string[], video = false): string | null {
+  const max = video ? MAX_VIDEO_FRAMES : MAX_IMAGES;
+  if (urls.length > max) return video ? `Please send one short video at a time.` : `Please send at most ${MAX_IMAGES} photos at a time.`;
   for (const u of urls) {
     const n = dataUrlBytes(u);
     if (n == null) return "Photos must be uploaded from your device.";

@@ -246,6 +246,18 @@ export function Chat({ slug, profileUid, sessionId, initialMessages, onMessages,
                           {p.text}
                         </div>
                       );
+                    if (p.type === "file" && /^video-frame-/.test(p.filename ?? "")) {
+                      // Video upload: show the first frame as the thumbnail with one chip; hide the other frames.
+                      if (m.parts.findIndex((q) => q.type === "file" && /^video-frame-/.test(q.filename ?? "")) !== i) return null;
+                      const n = m.parts.filter((q) => q.type === "file" && /^video-frame-/.test(q.filename ?? "")).length;
+                      return (
+                        <span key={i} className="relative inline-block" data-testid="video-thumb">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={p.url} alt="Video thumbnail" className="max-h-48 rounded-lg border" />
+                          <span className="absolute bottom-1.5 left-1.5 rounded-full bg-black/75 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.1em] text-white">Video · {n} frames analyzed</span>
+                        </span>
+                      );
+                    }
                     if (p.type === "file")
                       return p.mediaType.startsWith("image/") ? (
                         // eslint-disable-next-line @next/next/no-img-element
