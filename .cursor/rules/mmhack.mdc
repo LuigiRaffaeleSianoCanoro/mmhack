@@ -1,0 +1,8 @@
+---
+description: mmhack project conventions
+alwaysApply: true
+---
+- Use `/poteto-mode` (pstack) for any non-trivial change. Prove it works: `pnpm lint && pnpm build`, then hit /api/chat.
+- Design: read docs/brand/BRAND.md and docs/brand/MOTION.md before touching UI. Tokens only (src/app/globals.css), no raw hex in components. One accent: `--mm-accent`.
+- Secrets live in Vercel env vars only. Never commit .env files.
+- No em dashes in copy.

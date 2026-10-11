@@ -1,0 +1,8 @@
+---
+description: pstack role to model mapping (written by hand, mirrors /setup-pstack defaults). Rerun /setup-pstack in Cursor to regenerate.
+alwaysApply: true
+---
+# pstack models
+- code (feature, refactor, bug fix, perf, hillclimb): grok
+- judgment, prose, hardest changes: claude-opus-5-5
+- review panel: claude-opus-5-5, grok
