@@ -36,7 +36,8 @@ const WHY: Record<string, string> = {
   followup: "short replies don't need a big model, so this stays fast and cheap.",
   illustrate: "draws a clear picture of the repair.",
 };
-export const whyModel = (s: TraceStep) => (WHY[s.id] && isAI(s) && modelName(s.model) ? `Why ${modelName(s.model) || "this model"}: ${WHY[s.id]}` : "");
+const JEV_WHY = "answers in about a tenth of a second and caught every hazard in our 14-case test; GPT-5 mini steps in if it's unsure or slow.";
+export const whyModel = (s: TraceStep) => s.id === "triage" && s.provider === "typesafe" && s.status !== "error" ? `Why Jev: ${JEV_WHY}` : (WHY[s.id] && isAI(s) && modelName(s.model) ? `Why ${modelName(s.model) || "this model"}: ${WHY[s.id]}` : "");
 
 const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
 
@@ -45,10 +46,12 @@ export function stepLine(s: TraceStep, sent?: { to?: string; at?: number }): str
   const err = s.status === "error";
   switch (s.id) {
     case "triage": {
-      if (err) return "The quick check didn't finish, so we carried on without it.";
+      const jev = s.provider === "typesafe";
+      if (err) return jev ? "Jev wasn't sure or was slow, so GPT-5 mini is double-checking." : "The quick check didn't finish, so we carried on without it.";
+      const by = jev ? "Triaged by Jev" : s.why.startsWith("Jev fallback") ? "Triaged by GPT-5 mini (backup for Jev)" : "Quick check";
       const m = s.why.match(/Result:\s*([\w-]+),\s*(\w+)(, HAZARD)?/);
-      if (!m) return "Quick check of your problem.";
-      return m[3] ? "Quick check: this looks like a safety hazard." : `Quick check: a ${m[1]} issue, ${m[2]} urgency.`;
+      if (!m) return `${by}.`;
+      return m[3] ? `${by}: this looks like a safety hazard.` : `${by}: a ${m[1]} issue, ${m[2]} urgency.`;
     }
     case "vision":
       if (err) return "We couldn't read the photo this time.";
@@ -97,5 +100,5 @@ export function runsOn(steps: TraceStep[]) {
   const names = [...new Set(steps.filter(isAI).map((s) => (s.provider === "typesafe" ? "Jev by TypeSafe" : modelName(s.model))).filter(Boolean))];
   if (!names.length) return "";
   const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names[0];
-  return `Runs on ${list} through Neon AI Gateway`;
+  return steps.some((s) => s.provider === "typesafe") ? `Runs on ${list} (Jev via TypeSafe, the rest through Neon AI Gateway)` : `Runs on ${list} through Neon AI Gateway`;
 }

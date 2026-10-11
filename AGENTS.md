@@ -11,4 +11,4 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## Architecture decisions
 
 Read before changing routing or actions: [docs/adr/](docs/adr/README.md).
-- ADR-001 routed pipeline · ADR-002 model routing table (Grok removed, Jev optional/unmeasured) · ADR-003 approval and governed-action boundary.
+- ADR-001 routed pipeline · ADR-002 model routing table (Grok removed, Jev primary triage with gpt-5-mini fallback) · ADR-003 approval and governed-action boundary.

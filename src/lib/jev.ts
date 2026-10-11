@@ -3,18 +3,21 @@ import { TypeSafeClient, choice, noul } from "@typesafe-ai/sdk";
 
 /**
  * Optional raw-Jev triage via TypeSafe SystemOne (POST https://api.typesafe.ai/v1/systemone, model jev-latest).
- * This is NOT OpenRouter's typesafe/jev-router (a model picker). Off unless FIXIT_JEV_TRIAGE=1 and TYPESAFE_API_KEY are set.
+ * This is NOT OpenRouter's typesafe/jev-router (a model picker). Primary triage whenever TYPESAFE_API_KEY is set
+ * (Oct 11 2026 bench: 24/24 hazard runs caught, same as gpt-5-mini). Kill switch: FIXIT_JEV_TRIAGE=0.
  * Any error, timeout, malformed or low-confidence answer throws, and the caller falls back to gpt-5-mini.
  */
 export const JEV_MODEL = process.env.TYPESAFE_MODEL ?? "jev-latest";
-// Clamped to 500-5000 ms so a slow provider always leaves budget for the gpt-5-mini fallback.
+// Clamped to 500-2500 ms so a slow provider always leaves budget for the gpt-5-mini fallback.
 const rawTimeout = Number(process.env.TYPESAFE_TIMEOUT_MS ?? 2500);
-export const JEV_TIMEOUT_MS = Number.isFinite(rawTimeout) ? Math.min(5000, Math.max(500, rawTimeout)) : 2500;
+export const JEV_TIMEOUT_MS = Number.isFinite(rawTimeout) ? Math.min(2500, Math.max(500, rawTimeout)) : 2500;
 export const JEV_MIN_CONFIDENCE = 0.6;
-/** Conservative: a modest probability of hazard is treated as a hazard. */
-export const JEV_HAZARD_THRESHOLD = 0.3;
+/** P(hazard) at or above this is a hazard (safety stop). Bench: real hazards scored 0.86-0.98. */
+export const JEV_HAZARD_THRESHOLD = 0.7;
+/** P(hazard) below this is "no hazard". In between, Jev is unsure and gpt-5-mini decides (bench: benign washer/thermostat scored 0.30-0.42). */
+export const JEV_SAFE_THRESHOLD = 0.3;
 
-export const jevEnabled = () => process.env.FIXIT_JEV_TRIAGE === "1" && !!process.env.TYPESAFE_API_KEY;
+export const jevEnabled = () => process.env.FIXIT_JEV_TRIAGE !== "0" && !!process.env.TYPESAFE_API_KEY;
 
 const CATEGORIES = ["plumbing", "electrical", "gas", "appliance", "hvac", "pest", "structural", "general"] as const;
 const URGENCIES = ["low", "medium", "high", "emergency"] as const;
@@ -61,11 +64,15 @@ export async function jevTriage(text: string, hasPhoto: boolean): Promise<JevTri
   if (!p.success) throw new JevFallback("malformed Jev output");
   const { category, urgency, hazard } = p.data.answers;
   const confidence = Math.min(category.confidence, urgency.confidence);
+  const isHazard = hazard.noul >= JEV_HAZARD_THRESHOLD;
+  // Unsure about the hazard: let gpt-5-mini decide (it caught every hazard in the bench).
+  if (!isHazard && hazard.noul >= JEV_SAFE_THRESHOLD)
+    throw new JevFallback(`unsure about hazard (P ${hazard.noul.toFixed(2)}) after ${latencyMs} ms`);
   // Low confidence on a non-hazard answer: don't trust it, use the default triage path.
-  if (confidence < JEV_MIN_CONFIDENCE && hazard.noul < JEV_HAZARD_THRESHOLD)
+  if (!isHazard && confidence < JEV_MIN_CONFIDENCE)
     throw new JevFallback(`low confidence ${confidence.toFixed(2)} after ${latencyMs} ms`);
   return {
-    triage: { category: category.choice, urgency: urgency.choice, hazard: hazard.noul >= JEV_HAZARD_THRESHOLD, summary: text },
+    triage: { category: category.choice, urgency: urgency.choice, hazard: isHazard, summary: text },
     model: p.data.model,
     latencyMs,
     confidence,

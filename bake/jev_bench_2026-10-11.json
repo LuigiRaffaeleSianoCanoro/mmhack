@@ -1,0 +1,933 @@
+{
+ "date": "2026-10-11",
+ "where": "production (mmhack.vercel.app), temporary admin-token endpoint, production TYPESAFE_API_KEY + Neon gateway",
+ "jev_model_requested": "jev-latest",
+ "jev_timeout_ms": 2500,
+ "note": "Jev rows were scored with the OLD thresholds (hazard if P>=0.3). 'error' = adapter fallback (low confidence). gpt-5-mini prompt identical to /api/fixit triage. Each case run 3 times sequentially.",
+ "cases": [
+  {
+   "text": "I smell rotten eggs near the stove and it's getting stronger.",
+   "expected_category": "gas",
+   "expected_hazard": true
+  },
+  {
+   "text": "There's a hissing sound behind the dryer and a sulfur smell in the laundry room.",
+   "expected_category": "gas",
+   "expected_hazard": true
+  },
+  {
+   "text": "The outlet behind my TV is warm, has brown scorch marks, and I heard a crackle.",
+   "expected_category": "electrical",
+   "expected_hazard": true
+  },
+  {
+   "text": "The hallway light switch buzzes and is hot to the touch, and the lights flicker.",
+   "expected_category": "electrical",
+   "expected_hazard": true
+  },
+  {
+   "text": "My CO detector keeps beeping and everyone in the apartment has headaches and feels dizzy.",
+   "expected_category": "gas",
+   "expected_hazard": true
+  },
+  {
+   "text": "The furnace flame is yellow, there's soot around the vent, and the CO alarm went off last night.",
+   "expected_category": "hvac",
+   "expected_hazard": true
+  },
+  {
+   "text": "Water is pouring through my ceiling from the unit upstairs and pooling on the floor near the outlets.",
+   "expected_category": "plumbing",
+   "expected_hazard": true
+  },
+  {
+   "text": "The water heater burst and there are two inches of water across the basement.",
+   "expected_category": "plumbing",
+   "expected_hazard": true
+  },
+  {
+   "text": "My kitchen faucet keeps dripping even when the handle is fully off.",
+   "expected_category": "plumbing",
+   "expected_hazard": false
+  },
+  {
+   "text": "My washing machine display shows 'E21' and won't drain.",
+   "expected_category": "appliance",
+   "expected_hazard": false
+  },
+  {
+   "text": "A kitchen cabinet door hinge is loose and the door hangs crooked.",
+   "expected_category": "general",
+   "expected_hazard": false
+  },
+  {
+   "text": "The bathroom sink drains really slowly.",
+   "expected_category": "plumbing",
+   "expected_hazard": false
+  },
+  {
+   "text": "I found a few mouse droppings under the kitchen sink.",
+   "expected_category": "pest",
+   "expected_hazard": false
+  },
+  {
+   "text": "The thermostat screen is blank but the heat still comes on.",
+   "expected_category": "hvac",
+   "expected_hazard": false
+  }
+ ],
+ "runs": [
+  [
+   {
+    "text": "I smell rotten eggs near the stove and it's getting stronger.",
+    "jev": {
+     "category": "gas",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "I smell rotten eggs near the stove and it's getting stronger.",
+     "model": "jev-1.13.0",
+     "latencyMs": 165,
+     "confidence": 0.99,
+     "hazardP": 0.93
+    },
+    "mini": {
+     "category": "gas",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "Strong rotten-egg gas smell near stove increasing",
+     "lang": "English",
+     "latencyMs": 994
+    }
+   },
+   {
+    "text": "There's a hissing sound behind the dryer and a sulfur smell in the laundry room.",
+    "jev": {
+     "category": "gas",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "There's a hissing sound behind the dryer and a sulfur smell in the laundry room.",
+     "model": "jev-1.13.0",
+     "latencyMs": 121,
+     "confidence": 0.88,
+     "hazardP": 0.86
+    },
+    "mini": {
+     "category": "gas",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "Hissing and sulfur smell behind dryer \u2014 possible gas leak",
+     "lang": "English",
+     "latencyMs": 945
+    }
+   },
+   {
+    "text": "The outlet behind my TV is warm, has brown scorch marks, and I heard a crackle.",
+    "jev": {
+     "category": "electrical",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "The outlet behind my TV is warm, has brown scorch marks, and I heard a crackle.",
+     "model": "jev-1.13.0",
+     "latencyMs": 124,
+     "confidence": 0.97,
+     "hazardP": 0.97
+    },
+    "mini": {
+     "category": "electrical",
+     "urgency": "high",
+     "hazard": true,
+     "summary": "Outlet warm with scorch marks and crackling sound behind TV",
+     "lang": "English",
+     "latencyMs": 1094
+    }
+   },
+   {
+    "text": "The hallway light switch buzzes and is hot to the touch, and the lights flicker.",
+    "jev": {
+     "category": "electrical",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "The hallway light switch buzzes and is hot to the touch, and the lights flicker.",
+     "model": "jev-1.13.0",
+     "latencyMs": 133,
+     "confidence": 0.41,
+     "hazardP": 0.95
+    },
+    "mini": {
+     "category": "electrical",
+     "urgency": "high",
+     "hazard": true,
+     "summary": "Hallway switch buzzing, hot to touch, lights flicker",
+     "lang": "English",
+     "latencyMs": 1047
+    }
+   },
+   {
+    "text": "My CO detector keeps beeping and everyone in the apartment has headaches and feels dizzy.",
+    "jev": {
+     "category": "gas",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "My CO detector keeps beeping and everyone in the apartment has headaches and feels dizzy.",
+     "model": "jev-1.13.0",
+     "latencyMs": 140,
+     "confidence": 0.68,
+     "hazardP": 0.97
+    },
+    "mini": {
+     "category": "hvac",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "Carbon monoxide detector beeping; occupants with headaches and dizziness",
+     "lang": "English",
+     "latencyMs": 1101
+    }
+   },
+   {
+    "text": "The furnace flame is yellow, there's soot around the vent, and the CO alarm went off last night.",
+    "jev": {
+     "category": "hvac",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "The furnace flame is yellow, there's soot around the vent, and the CO alarm went off last night.",
+     "model": "jev-1.13.0",
+     "latencyMs": 108,
+     "confidence": 0.92,
+     "hazardP": 0.97
+    },
+    "mini": {
+     "category": "hvac",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "Yellow furnace flame, soot at vent, CO alarm activated last night",
+     "lang": "English",
+     "latencyMs": 963
+    }
+   },
+   {
+    "text": "Water is pouring through my ceiling from the unit upstairs and pooling on the floor near the outlets.",
+    "jev": {
+     "category": "plumbing",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "Water is pouring through my ceiling from the unit upstairs and pooling on the floor near the outlets.",
+     "model": "jev-1.13.0",
+     "latencyMs": 128,
+     "confidence": 0.99,
+     "hazardP": 0.96
+    },
+    "mini": {
+     "category": "plumbing",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "Ceiling leaking heavily with pooling water near electrical outlets",
+     "lang": "English",
+     "latencyMs": 947
+    }
+   },
+   {
+    "text": "The water heater burst and there are two inches of water across the basement.",
+    "jev": {
+     "category": "plumbing",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "The water heater burst and there are two inches of water across the basement.",
+     "model": "jev-1.13.0",
+     "latencyMs": 118,
+     "confidence": 0.72,
+     "hazardP": 0.97
+    },
+    "mini": {
+     "category": "plumbing",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "Water heater burst; two inches of basement flooding",
+     "lang": "English",
+     "latencyMs": 909
+    }
+   },
+   {
+    "text": "My kitchen faucet keeps dripping even when the handle is fully off.",
+    "jev": {
+     "error": "low confidence 0.39 after 118 ms",
+     "latencyMs": 119
+    },
+    "mini": {
+     "category": "plumbing",
+     "urgency": "low",
+     "hazard": false,
+     "summary": "Kitchen faucet continuously drips despite handle off",
+     "lang": "English",
+     "latencyMs": 896
+    }
+   },
+   {
+    "text": "My washing machine display shows 'E21' and won't drain.",
+    "jev": {
+     "category": "appliance",
+     "urgency": "medium",
+     "hazard": true,
+     "summary": "My washing machine display shows 'E21' and won't drain.",
+     "model": "jev-1.13.0",
+     "latencyMs": 128,
+     "confidence": 0.61,
+     "hazardP": 0.41
+    },
+    "mini": {
+     "category": "appliance",
+     "urgency": "medium",
+     "hazard": false,
+     "summary": "Washing machine error E21, not draining",
+     "lang": "English",
+     "latencyMs": 903
+    }
+   },
+   {
+    "text": "A kitchen cabinet door hinge is loose and the door hangs crooked.",
+    "jev": {
+     "category": "general",
+     "urgency": "low",
+     "hazard": false,
+     "summary": "A kitchen cabinet door hinge is loose and the door hangs crooked.",
+     "model": "jev-1.13.0",
+     "latencyMs": 123,
+     "confidence": 0.73,
+     "hazardP": 0.03
+    },
+    "mini": {
+     "category": "structural",
+     "urgency": "low",
+     "hazard": false,
+     "summary": "Loose kitchen cabinet hinge causing crooked door",
+     "lang": "English",
+     "latencyMs": 956
+    }
+   },
+   {
+    "text": "The bathroom sink drains really slowly.",
+    "jev": {
+     "category": "plumbing",
+     "urgency": "low",
+     "hazard": false,
+     "summary": "The bathroom sink drains really slowly.",
+     "model": "jev-1.13.0",
+     "latencyMs": 121,
+     "confidence": 0.68,
+     "hazardP": 0.14
+    },
+    "mini": {
+     "category": "plumbing",
+     "urgency": "low",
+     "hazard": false,
+     "summary": "Bathroom sink is draining very slowly",
+     "lang": "English",
+     "latencyMs": 875
+    }
+   },
+   {
+    "text": "I found a few mouse droppings under the kitchen sink.",
+    "jev": {
+     "error": "low confidence 0.45 after 120 ms",
+     "latencyMs": 120
+    },
+    "mini": {
+     "category": "pest",
+     "urgency": "low",
+     "hazard": false,
+     "summary": "Mouse droppings found under kitchen sink",
+     "lang": "English",
+     "latencyMs": 962
+    }
+   },
+   {
+    "text": "The thermostat screen is blank but the heat still comes on.",
+    "jev": {
+     "category": "hvac",
+     "urgency": "medium",
+     "hazard": true,
+     "summary": "The thermostat screen is blank but the heat still comes on.",
+     "model": "jev-1.13.0",
+     "latencyMs": 146,
+     "confidence": 0.36,
+     "hazardP": 0.31
+    },
+    "mini": {
+     "category": "hvac",
+     "urgency": "low",
+     "hazard": false,
+     "summary": "Thermostat screen blank though heating still functions",
+     "lang": "English",
+     "latencyMs": 961
+    }
+   }
+  ],
+  [
+   {
+    "text": "I smell rotten eggs near the stove and it's getting stronger.",
+    "jev": {
+     "category": "gas",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "I smell rotten eggs near the stove and it's getting stronger.",
+     "model": "jev-1.13.0",
+     "latencyMs": 200,
+     "confidence": 0.99,
+     "hazardP": 0.93
+    },
+    "mini": {
+     "category": "gas",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "Strong rotten-egg (gas) smell near stove increasing",
+     "lang": "English",
+     "latencyMs": 1598
+    }
+   },
+   {
+    "text": "There's a hissing sound behind the dryer and a sulfur smell in the laundry room.",
+    "jev": {
+     "category": "gas",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "There's a hissing sound behind the dryer and a sulfur smell in the laundry room.",
+     "model": "jev-1.13.0",
+     "latencyMs": 148,
+     "confidence": 0.89,
+     "hazardP": 0.86
+    },
+    "mini": {
+     "category": "appliance",
+     "urgency": "high",
+     "hazard": true,
+     "summary": "Hissing sound and sulfur smell behind dryer in laundry room",
+     "lang": "English",
+     "latencyMs": 924
+    }
+   },
+   {
+    "text": "The outlet behind my TV is warm, has brown scorch marks, and I heard a crackle.",
+    "jev": {
+     "category": "electrical",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "The outlet behind my TV is warm, has brown scorch marks, and I heard a crackle.",
+     "model": "jev-1.13.0",
+     "latencyMs": 138,
+     "confidence": 0.97,
+     "hazardP": 0.96
+    },
+    "mini": {
+     "category": "electrical",
+     "urgency": "high",
+     "hazard": true,
+     "summary": "Outlet warm with scorch marks and crackling sound behind TV",
+     "lang": "English",
+     "latencyMs": 1049
+    }
+   },
+   {
+    "text": "The hallway light switch buzzes and is hot to the touch, and the lights flicker.",
+    "jev": {
+     "category": "electrical",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "The hallway light switch buzzes and is hot to the touch, and the lights flicker.",
+     "model": "jev-1.13.0",
+     "latencyMs": 143,
+     "confidence": 0.37,
+     "hazardP": 0.95
+    },
+    "mini": {
+     "category": "electrical",
+     "urgency": "high",
+     "hazard": true,
+     "summary": "Switch buzzes, hot to touch, lights flicker in hallway",
+     "lang": "English",
+     "latencyMs": 1052
+    }
+   },
+   {
+    "text": "My CO detector keeps beeping and everyone in the apartment has headaches and feels dizzy.",
+    "jev": {
+     "category": "gas",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "My CO detector keeps beeping and everyone in the apartment has headaches and feels dizzy.",
+     "model": "jev-1.13.0",
+     "latencyMs": 142,
+     "confidence": 0.57,
+     "hazardP": 0.98
+    },
+    "mini": {
+     "category": "hvac",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "CO detector beeping; occupants have headaches and dizziness",
+     "lang": "English",
+     "latencyMs": 1128
+    }
+   },
+   {
+    "text": "The furnace flame is yellow, there's soot around the vent, and the CO alarm went off last night.",
+    "jev": {
+     "category": "hvac",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "The furnace flame is yellow, there's soot around the vent, and the CO alarm went off last night.",
+     "model": "jev-1.13.0",
+     "latencyMs": 119,
+     "confidence": 0.9,
+     "hazardP": 0.98
+    },
+    "mini": {
+     "category": "hvac",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "Yellow furnace flame, soot at vent, CO alarm activated last night",
+     "lang": "English",
+     "latencyMs": 979
+    }
+   },
+   {
+    "text": "Water is pouring through my ceiling from the unit upstairs and pooling on the floor near the outlets.",
+    "jev": {
+     "category": "plumbing",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "Water is pouring through my ceiling from the unit upstairs and pooling on the floor near the outlets.",
+     "model": "jev-1.13.0",
+     "latencyMs": 120,
+     "confidence": 0.99,
+     "hazardP": 0.97
+    },
+    "mini": {
+     "category": "plumbing",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "Water pouring from upstairs ceiling pooling near electrical outlets",
+     "lang": "English",
+     "latencyMs": 925
+    }
+   },
+   {
+    "text": "The water heater burst and there are two inches of water across the basement.",
+    "jev": {
+     "category": "plumbing",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "The water heater burst and there are two inches of water across the basement.",
+     "model": "jev-1.13.0",
+     "latencyMs": 125,
+     "confidence": 0.71,
+     "hazardP": 0.96
+    },
+    "mini": {
+     "category": "plumbing",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "Water heater burst causing 2 inches of basement flooding",
+     "lang": "English",
+     "latencyMs": 1124
+    }
+   },
+   {
+    "text": "My kitchen faucet keeps dripping even when the handle is fully off.",
+    "jev": {
+     "error": "low confidence 0.40 after 164 ms",
+     "latencyMs": 164
+    },
+    "mini": {
+     "category": "plumbing",
+     "urgency": "low",
+     "hazard": false,
+     "summary": "Kitchen faucet continuously drips when fully turned off",
+     "lang": "English",
+     "latencyMs": 826
+    }
+   },
+   {
+    "text": "My washing machine display shows 'E21' and won't drain.",
+    "jev": {
+     "category": "appliance",
+     "urgency": "medium",
+     "hazard": true,
+     "summary": "My washing machine display shows 'E21' and won't drain.",
+     "model": "jev-1.13.0",
+     "latencyMs": 163,
+     "confidence": 0.57,
+     "hazardP": 0.42
+    },
+    "mini": {
+     "category": "appliance",
+     "urgency": "medium",
+     "hazard": false,
+     "summary": "Washing machine error E21; won't drain",
+     "lang": "English",
+     "latencyMs": 917
+    }
+   },
+   {
+    "text": "A kitchen cabinet door hinge is loose and the door hangs crooked.",
+    "jev": {
+     "category": "general",
+     "urgency": "low",
+     "hazard": false,
+     "summary": "A kitchen cabinet door hinge is loose and the door hangs crooked.",
+     "model": "jev-1.13.0",
+     "latencyMs": 111,
+     "confidence": 0.75,
+     "hazardP": 0.03
+    },
+    "mini": {
+     "category": "general",
+     "urgency": "low",
+     "hazard": false,
+     "summary": "Loose kitchen cabinet door hinge causing crooked door",
+     "lang": "English",
+     "latencyMs": 1045
+    }
+   },
+   {
+    "text": "The bathroom sink drains really slowly.",
+    "jev": {
+     "category": "plumbing",
+     "urgency": "low",
+     "hazard": false,
+     "summary": "The bathroom sink drains really slowly.",
+     "model": "jev-1.13.0",
+     "latencyMs": 136,
+     "confidence": 0.75,
+     "hazardP": 0.15
+    },
+    "mini": {
+     "category": "plumbing",
+     "urgency": "low",
+     "hazard": false,
+     "summary": "Bathroom sink draining very slowly",
+     "lang": "English",
+     "latencyMs": 1031
+    }
+   },
+   {
+    "text": "I found a few mouse droppings under the kitchen sink.",
+    "jev": {
+     "error": "low confidence 0.45 after 116 ms",
+     "latencyMs": 116
+    },
+    "mini": {
+     "category": "pest",
+     "urgency": "low",
+     "hazard": false,
+     "summary": "Mouse droppings found under kitchen sink",
+     "lang": "English",
+     "latencyMs": 1016
+    }
+   },
+   {
+    "text": "The thermostat screen is blank but the heat still comes on.",
+    "jev": {
+     "category": "hvac",
+     "urgency": "medium",
+     "hazard": true,
+     "summary": "The thermostat screen is blank but the heat still comes on.",
+     "model": "jev-1.13.0",
+     "latencyMs": 125,
+     "confidence": 0.36,
+     "hazardP": 0.3
+    },
+    "mini": {
+     "category": "hvac",
+     "urgency": "low",
+     "hazard": false,
+     "summary": "Thermostat display blank though heating still operates",
+     "lang": "English",
+     "latencyMs": 854
+    }
+   }
+  ],
+  [
+   {
+    "text": "I smell rotten eggs near the stove and it's getting stronger.",
+    "jev": {
+     "category": "gas",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "I smell rotten eggs near the stove and it's getting stronger.",
+     "model": "jev-1.13.0",
+     "latencyMs": 114,
+     "confidence": 0.99,
+     "hazardP": 0.93
+    },
+    "mini": {
+     "category": "gas",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "Strong rotten-egg gas smell near the stove, getting stronger",
+     "lang": "English",
+     "latencyMs": 971
+    }
+   },
+   {
+    "text": "There's a hissing sound behind the dryer and a sulfur smell in the laundry room.",
+    "jev": {
+     "category": "gas",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "There's a hissing sound behind the dryer and a sulfur smell in the laundry room.",
+     "model": "jev-1.13.0",
+     "latencyMs": 116,
+     "confidence": 0.88,
+     "hazardP": 0.86
+    },
+    "mini": {
+     "category": "appliance",
+     "urgency": "high",
+     "hazard": true,
+     "summary": "Hissing and sulfur smell behind dryer in laundry room",
+     "lang": "English",
+     "latencyMs": 968
+    }
+   },
+   {
+    "text": "The outlet behind my TV is warm, has brown scorch marks, and I heard a crackle.",
+    "jev": {
+     "category": "electrical",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "The outlet behind my TV is warm, has brown scorch marks, and I heard a crackle.",
+     "model": "jev-1.13.0",
+     "latencyMs": 143,
+     "confidence": 0.95,
+     "hazardP": 0.96
+    },
+    "mini": {
+     "category": "electrical",
+     "urgency": "high",
+     "hazard": true,
+     "summary": "Outlet warm with brown scorch marks and audible crackling",
+     "lang": "English",
+     "latencyMs": 970
+    }
+   },
+   {
+    "text": "The hallway light switch buzzes and is hot to the touch, and the lights flicker.",
+    "jev": {
+     "category": "electrical",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "The hallway light switch buzzes and is hot to the touch, and the lights flicker.",
+     "model": "jev-1.13.0",
+     "latencyMs": 119,
+     "confidence": 0.48,
+     "hazardP": 0.95
+    },
+    "mini": {
+     "category": "electrical",
+     "urgency": "high",
+     "hazard": true,
+     "summary": "Hallway light switch buzzing, hot to touch, lights flicker",
+     "lang": "English",
+     "latencyMs": 859
+    }
+   },
+   {
+    "text": "My CO detector keeps beeping and everyone in the apartment has headaches and feels dizzy.",
+    "jev": {
+     "category": "gas",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "My CO detector keeps beeping and everyone in the apartment has headaches and feels dizzy.",
+     "model": "jev-1.13.0",
+     "latencyMs": 139,
+     "confidence": 0.53,
+     "hazardP": 0.97
+    },
+    "mini": {
+     "category": "hvac",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "CO detector beeping; occupants have headaches and dizziness",
+     "lang": "English",
+     "latencyMs": 968
+    }
+   },
+   {
+    "text": "The furnace flame is yellow, there's soot around the vent, and the CO alarm went off last night.",
+    "jev": {
+     "category": "hvac",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "The furnace flame is yellow, there's soot around the vent, and the CO alarm went off last night.",
+     "model": "jev-1.13.0",
+     "latencyMs": 124,
+     "confidence": 0.91,
+     "hazardP": 0.98
+    },
+    "mini": {
+     "category": "hvac",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "Yellow furnace flame, soot at vent, CO alarm activated last night",
+     "lang": "English",
+     "latencyMs": 1002
+    }
+   },
+   {
+    "text": "Water is pouring through my ceiling from the unit upstairs and pooling on the floor near the outlets.",
+    "jev": {
+     "category": "plumbing",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "Water is pouring through my ceiling from the unit upstairs and pooling on the floor near the outlets.",
+     "model": "jev-1.13.0",
+     "latencyMs": 138,
+     "confidence": 0.99,
+     "hazardP": 0.97
+    },
+    "mini": {
+     "category": "plumbing",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "Ceiling leak pouring water pooling near electrical outlets",
+     "lang": "English",
+     "latencyMs": 831
+    }
+   },
+   {
+    "text": "The water heater burst and there are two inches of water across the basement.",
+    "jev": {
+     "category": "plumbing",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "The water heater burst and there are two inches of water across the basement.",
+     "model": "jev-1.13.0",
+     "latencyMs": 117,
+     "confidence": 0.64,
+     "hazardP": 0.96
+    },
+    "mini": {
+     "category": "plumbing",
+     "urgency": "emergency",
+     "hazard": true,
+     "summary": "Water heater burst causing two inches of basement flooding",
+     "lang": "English",
+     "latencyMs": 962
+    }
+   },
+   {
+    "text": "My kitchen faucet keeps dripping even when the handle is fully off.",
+    "jev": {
+     "error": "low confidence 0.37 after 139 ms",
+     "latencyMs": 139
+    },
+    "mini": {
+     "category": "plumbing",
+     "urgency": "low",
+     "hazard": false,
+     "summary": "Kitchen faucet continuously drips despite handle fully off",
+     "lang": "English",
+     "latencyMs": 902
+    }
+   },
+   {
+    "text": "My washing machine display shows 'E21' and won't drain.",
+    "jev": {
+     "category": "appliance",
+     "urgency": "medium",
+     "hazard": true,
+     "summary": "My washing machine display shows 'E21' and won't drain.",
+     "model": "jev-1.13.0",
+     "latencyMs": 130,
+     "confidence": 0.57,
+     "hazardP": 0.42
+    },
+    "mini": {
+     "category": "appliance",
+     "urgency": "medium",
+     "hazard": false,
+     "summary": "Washing machine error E21; won't drain",
+     "lang": "English",
+     "latencyMs": 911
+    }
+   },
+   {
+    "text": "A kitchen cabinet door hinge is loose and the door hangs crooked.",
+    "jev": {
+     "category": "general",
+     "urgency": "low",
+     "hazard": false,
+     "summary": "A kitchen cabinet door hinge is loose and the door hangs crooked.",
+     "model": "jev-1.13.0",
+     "latencyMs": 118,
+     "confidence": 0.76,
+     "hazardP": 0.03
+    },
+    "mini": {
+     "category": "general",
+     "urgency": "low",
+     "hazard": false,
+     "summary": "Loose kitchen cabinet hinge causing crooked door",
+     "lang": "English",
+     "latencyMs": 1022
+    }
+   },
+   {
+    "text": "The bathroom sink drains really slowly.",
+    "jev": {
+     "category": "plumbing",
+     "urgency": "low",
+     "hazard": false,
+     "summary": "The bathroom sink drains really slowly.",
+     "model": "jev-1.13.0",
+     "latencyMs": 131,
+     "confidence": 0.68,
+     "hazardP": 0.13
+    },
+    "mini": {
+     "category": "plumbing",
+     "urgency": "low",
+     "hazard": false,
+     "summary": "Bathroom sink draining very slowly",
+     "lang": "English",
+     "latencyMs": 943
+    }
+   },
+   {
+    "text": "I found a few mouse droppings under the kitchen sink.",
+    "jev": {
+     "error": "low confidence 0.33 after 157 ms",
+     "latencyMs": 157
+    },
+    "mini": {
+     "category": "pest",
+     "urgency": "low",
+     "hazard": false,
+     "summary": "Mouse droppings found under kitchen sink",
+     "lang": "English",
+     "latencyMs": 855
+    }
+   },
+   {
+    "text": "The thermostat screen is blank but the heat still comes on.",
+    "jev": {
+     "category": "hvac",
+     "urgency": "medium",
+     "hazard": true,
+     "summary": "The thermostat screen is blank but the heat still comes on.",
+     "model": "jev-1.13.0",
+     "latencyMs": 142,
+     "confidence": 0.31,
+     "hazardP": 0.3
+    },
+    "mini": {
+     "category": "hvac",
+     "urgency": "low",
+     "hazard": false,
+     "summary": "Thermostat display blank though heat functions normally",
+     "lang": "English",
+     "latencyMs": 877
+    }
+   }
+  ]
+ ]
+}

@@ -26,7 +26,7 @@ Each step runs on the model that did best in a small bake-off we ran on the day 
 - **Photo understanding:** gpt-5.
 - **Repair plan and landlord draft:** Claude Sonnet (claude-sonnet-5 via the gateway). It falls back to gpt-5 automatically, and the trace shows the fallback.
 - **Repair illustration:** gpt-6-astra, generated asynchronously. Samples use pre-generated images labeled as such.
-- **Tested and cut:** Grok won no step. Jev/TypeSafe triage scored 2/5 against gpt-5-mini's 5/5 on hazard cases, so it stays off.
+- **Tested and cut:** Grok won no step. Raw Jev (TypeSafe `jev-latest`, served as jev-1.13.0) is now the primary triage: on a 14-case production bench (8 hazards x 3 runs) it caught 24/24 hazard runs, same as gpt-5-mini, at 128 ms median vs 962 ms; gpt-5-mini is the automatic fallback (`bake/jev_bench_2026-10-11.json`).
 
 We compared this against running Opus on every step. The routed pipeline came out about 4x cheaper (~$0.009 vs ~$0.038 per request) and faster (~13 s vs ~22 s). That's directional: 3-5 cases per task.
 
