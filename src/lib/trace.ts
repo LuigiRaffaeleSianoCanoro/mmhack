@@ -44,6 +44,8 @@ export type FixitCtx = {
   pending: { q: string; chips: string[] }[];
   /** AWS-66: sticky hazard flag for the case; never downgraded once set. */
   hazard?: boolean;
+  /** Tenure for this case: wizard answer wins, else the profile. Owners never get a landlord card. */
+  tenure?: "rent" | "own";
   approval?: "pending" | "approved";
   delivery?: "draft" | "sent" | "failed" | "unknown";
   draft?: { subject: string; body: string; to?: string };
@@ -58,5 +60,5 @@ export type DeliveryReady = { id: string; title: string; urgency: string; catego
 
 export type MMMessage = UIMessage<
   { approval?: boolean },
-  { trace: TraceStep; approval: ApprovalRequest; job: { jobId: string; jobToken?: string }; chips: { options: string[] }; ctx: FixitCtx; email: { subject: string; body?: string; sendKey?: string; to?: string; sent?: { at: number; to: string; id?: string } }; illustration: IllustrationRequest; delivery: DeliveryReady; cta: Cta }
+  { trace: TraceStep; approval: ApprovalRequest; job: { jobId: string; jobToken?: string }; chips: { options: string[] }; ctx: FixitCtx; email: { subject: string; body?: string; sendKey?: string; to?: string; sent?: { at: number; to: string; id?: string } }; illustration: IllustrationRequest; delivery: DeliveryReady; cta: Cta; pros: { owner: boolean } }
 >;

@@ -70,6 +70,12 @@ export async function POST(req: Request) {
     const c = m.parts.find((p) => p.type === "data-ctx");
     if (c && c.type === "data-ctx") { ctx = c.data; break; }
   }
+  // Tenure: an explicit wizard answer this turn wins, then the case, then the profile.
+  const lastAsk = [...messages].reverse().find((m) => m.role === "assistant")?.parts.map((p) => (p.type === "text" ? p.text : "")).join(" ") ?? "";
+  const said = tenureOf(text, lastAsk);
+  const tenure: "rent" | "own" | undefined = said ?? ctx?.tenure ?? (pr?.tenure || undefined);
+  const owner = tenure === "own";
+  if (ctx && tenure) ctx = { ...ctx, tenure };
   // Client hints only shape copy (never authorize anything); default to the guest path.
   const client = { guest: rawClient?.guest !== false, gmailEnabled: rawClient?.gmailEnabled !== false, gmailConnected: rawClient?.gmailConnected === true, sent: rawClient?.sent === true };
   const transcript = messages
@@ -92,7 +98,7 @@ export async function POST(req: Request) {
         writer.write({ type: "text-end", id });
       };
       const chips = (options: string[]) => options.length && writer.write({ type: "data-chips", id: "chips", data: { options: options.slice(0, 4) } });
-      const save = (c: FixitCtx) => writer.write({ type: "data-ctx", id: "ctx", data: c });
+      const save = (c: FixitCtx) => writer.write({ type: "data-ctx", id: "ctx", data: tenure ? { ...c, tenure } : c });
       const finish = () => writer.write({ type: "finish" });
       const usedProfile = (items: string[], how: string) => items.length && put({ id: "profile", task: "Profile", model: "your profile", provider: "router", why: `Used your profile: ${items.join(", ")}. ${how}`, status: "done", latencyMs: 0 });
       // Ask gpt-5-mini for a small JSON turn, traced.
@@ -135,12 +141,20 @@ export async function POST(req: Request) {
         }
       };
       const safetyStop = async (category: string) => {
-        put({ id: "safety", task: "Safety stop", model: "rules + triage", provider: "router", why: "Hazard detected. No DIY steps. Escalate to landlord or emergency services.", status: "awaiting_approval" });
+        put({ id: "safety", task: "Safety stop", model: "rules + triage", provider: "router", why: owner ? "Hazard detected. No DIY steps. Escalate to emergency services and the utility, then a licensed pro." : "Hazard detected. No DIY steps. Escalate to landlord or emergency services.", status: owner ? "done" : "awaiting_approval" });
         const gasLine = sos ? `Call **${sos.number}** from outside${sos.utility ? `, then your gas utility (likely ${sos.utility} for ZIP ${pr!.zip}; its emergency line is on your bill)` : " and your gas utility's emergency line (on your bill)"}.` : "Call 911 or your utility from outside.";
         const hz = category === "gas" ? `**Stop: possible gas leak.** Leave now; don't switch lights or appliances. ${gasLine}` : `**Stop: this looks hazardous (${category}).** If you smell gas or see sparks or smoke, leave now. ${gasLine}`;
-        usedProfile([sos ? "ZIP" : "", address ? "address" : "", pr?.landlordName || pr?.landlordEmail ? "landlord" : ""].filter(Boolean), "Location only sets emergency guidance; details go into the request you approve, not to any model.");
-        say("s", `${hz} I can draft an urgent request to your landlord.`);
+        usedProfile([sos ? "ZIP" : "", address ? "address" : "", !owner && (pr?.landlordName || pr?.landlordEmail) ? "landlord" : ""].filter(Boolean), "Location only sets emergency guidance; details go into the request you approve, not to any model.");
         const summary = ctx?.hazard ? ctx.summary : text.slice(0, 200) || ctx?.summary || "possible hazard";
+        if (owner) {
+          // Owners: safety stop + utility/911 only; the pros card is the next step. No landlord card.
+          say("s", `${hz} Once you're safe, a licensed pro can take it from here.`);
+          writer.write({ type: "data-pros", id: "pros", data: { owner: true } });
+          save({ stage: "done", lang: ctx?.lang ?? "English", summary, observed: ctx?.observed ?? "", triage: { category, urgency: "emergency", hazard: true, summary }, pending: [], hazard: true });
+          finish();
+          return;
+        }
+        say("s", `${hz} I can draft an urgent request to your landlord.`);
         writer.write({ type: "data-approval", id: "approval", data: await approval("Draft an urgent repair request to your landlord. Nothing is sent automatically.", summary, { category, hazard: true }) });
         // AWS-66: persist the hazard case so follow-ups never re-triage it or downgrade it to "general".
         save({ stage: "done", lang: ctx?.lang ?? "English", summary, observed: ctx?.observed ?? "", triage: { category, urgency: "emergency", hazard: true, summary }, pending: [], hazard: true, approval: "pending" });
@@ -336,7 +350,8 @@ export async function POST(req: Request) {
           put({ id: "answer", task: "Answer from your case", model: "case state", provider: "router", why: "About the current case: answered from what already happened, no new plan or approval.", status: "done", latencyMs: 0 });
           const action = r.action ?? "status";
           let msg: string;
-          if (ctx.approval !== "approved" || !d) msg = `Not yet. Approve the request card above and I'll prepare the email to your landlord. Nothing is sent without your OK.`;
+          if (owner && !d) msg = `You own the home, so there's no landlord request. Use "Request visit" on a pro above when you want help.`;
+          else if (ctx.approval !== "approved" || !d) msg = `Not yet. Approve the request card above and I'll prepare the email to your landlord. Nothing is sent without your OK.`;
           else if (client.sent || ctx.delivery === "sent") msg = `Yes, it was sent${d.to ? ` to ${d.to}` : ""}. If you don't hear back soon, call your landlord.`;
           else if (action === "edit") msg = `You can edit the draft before sending.${client.guest ? " Copy it or open it in your mail app and change anything you like." : " Change the text in the draft box above, then send it."}`;
           else if (client.guest) msg = `${action === "status" ? "Not sent yet. " : ""}You're browsing as a guest, so I prepared a draft. To send it from your Gmail: sign in and connect Gmail. Or copy the draft, or open it in your mail app.`;
@@ -463,19 +478,21 @@ export async function POST(req: Request) {
       // AWS-69: hazard cases never get a DIY plan.
       if (ctx.hazard || ctx.triage.hazard) return safetyStop(ctx.triage.category || "hazard");
       // Turn 3: concise plan (claude-sonnet-5 via gateway, gpt-5 retry), then cross-check and landlord option.
-      usedProfile([locale ? "city/ZIP" : "", address ? "address" : "", pr?.landlordName || pr?.landlordEmail ? "landlord" : ""].filter(Boolean), "Only city/ZIP reach the plan model; address and landlord go into the request template.");
+      usedProfile([locale ? "city/ZIP" : "", address ? "address" : "", !owner && (pr?.landlordName || pr?.landlordEmail) ? "landlord" : ""].filter(Boolean), "Only city/ZIP reach the plan model; address and landlord go into the request template.");
       const planText = await sonnet("Write the repair plan", "Safety-aware step-by-step planning needs the strongest reasoner.",
-        `You are FixIt, a renter repair assistant. Write in ${ctx.lang}. Format exactly:\n1 short sentence with the likely cause.\n**Tools:** comma list.\nUp to 5 numbered steps, each under 15 words.\nOne line: when to call the landlord.\nSAFETY: if the issue involves gas, a gas smell, sparks, smoke, exposed wiring, carbon monoxide or flooding near electricity, give NO tools and NO DIY steps: only leave the area, call 911, call the utility, notify the landlord.\nThen a line containing only ${DETAILS} followed by a longer detailed version (safety notes, lease limits, troubleshooting).${locale ? ` The user is near ${locale}: where parts or a pro are needed, you may say e.g. "check nearby hardware stores" or "a licensed local plumber"; you have no live search, so never name specific stores, prices or phone numbers.` : ""}${pr?.tenure === "own" ? " The user owns the home: replace landlord advice with when to call a licensed pro." : ""}`,
+        `You are FixIt, a ${owner ? "home" : "renter"} repair assistant. Write in ${ctx.lang}. Format exactly:\n1 short sentence with the likely cause.\n**Tools:** comma list.\nUp to 5 numbered steps, each under 15 words.\nOne line: ${owner ? "when to call a licensed pro" : "when to call the landlord"}.\nSAFETY: if the issue involves gas, a gas smell, sparks, smoke, exposed wiring, carbon monoxide or flooding near electricity, give NO tools and NO DIY steps: only leave the area, call 911, call the utility${owner ? ", then a licensed pro" : ", notify the landlord"}.\nThen a line containing only ${DETAILS} followed by a longer detailed version (${owner ? "safety notes, troubleshooting" : "safety notes, lease limits, troubleshooting"}). Never output empty list items or empty numbered lines.${locale ? ` The user is near ${locale}: where parts or a pro are needed, you may say e.g. "check nearby hardware stores" or "a licensed local plumber"; you have no live search, so never name specific stores, prices or phone numbers.` : ""}${owner ? " The user owns the home and may repair it: never mention a landlord, lease or tenancy." : ""}`,
         `Issue: ${ctx.summary}\nPhoto analysis: ${ctx.observed || "none"}\nTriage: ${JSON.stringify(ctx.triage)}\nConversation:\n${transcript}`);
       if (planText && unsafePlan(planText, `${ctx.summary} ${ctx.triage.category}`)) {
         put({ id: "safety-filter", task: "Safety filter", model: "rules", provider: "router", why: "The plan suggested DIY work on a gas or electrical hazard; replaced with emergency steps.", status: "done", latencyMs: 0 });
-        say("safe", SAFE_PLAN);
+        say("safe", owner ? SAFE_PLAN.replace("4. Notify your landlord.", "4. Once safe, call a licensed pro.") : SAFE_PLAN);
       } else if (planText) {
         await mini<{ v: string }>("check", "Cross-check safety", "Different model family audits the plan for unsafe or lease-violating steps.",
           `Audit this renter DIY repair plan. Reply ONLY JSON {"v":"PASS: reason" or "FLAG: reason"} (one line).\nPlan:\n${planText}`, { v: "" },
           (r) => (/^\s*PASS/i.test(r.v) ? "pass" : /^\s*FLAG/i.test(r.v) ? `flag:${r.v.replace(/^\s*FLAG\W*/i, "")}` : undefined));
       }
-      writer.write({ type: "data-approval", id: "approval", data: await approval("Want me to draft a repair request to your landlord instead? Nothing is sent automatically.", ctx.summary, { category: ctx.triage.category, hazard: false }) });
+      // Owners: the pros card is the action (Request visit); no landlord request.
+      if (owner) writer.write({ type: "data-pros", id: "pros", data: { owner: true } });
+      else writer.write({ type: "data-approval", id: "approval", data: await approval("Want me to draft a repair request to your landlord instead? Nothing is sent automatically.", ctx.summary, { category: ctx.triage.category, hazard: false }) });
       // AWS-60 (after the approval card so the CTA stays above the fold): optional illustration, generated async by the client after the plan; never for hazards or photo-less cases.
       if (planText) {
         const category = normalizeCategory(ctx.triage.category);
@@ -514,4 +531,16 @@ function reasonOf(e: unknown) {
   if (x?.name === "TimeoutError" || x?.name === "AbortError") msg = "timed out";
   const st = x?.statusCode ?? x?.status;
   return `${st ? `${st} ` : ""}${msg}`.replace(/sk-[A-Za-z0-9_-]{8,}/g, "[key]").slice(0, 120);
+}
+
+/** Tenure from the user's answer: explicit words, or Yes/No to a "Do you rent?" style question. */
+function tenureOf(answer: string, question = ""): "rent" | "own" | undefined {
+  const a = answer.toLowerCase();
+  if (/\b(i own|we own|owner|homeowner|own (it|the|my)|okay to repair|ok to repair|my own (house|home|place)|soy (el |la )?due[ñn]|propietari|es m[ií]a)\b/.test(a)) return "own";
+  if (/\b(i rent|we rent|renting|renter|tenant|landlord|lease|alquil|inquilin|rento)\b/.test(a)) return "rent";
+  if (/\b(rent|renting|landlord|alquil)\w*/i.test(question)) {
+    if (/^\s*(no|nope|nah)\b/.test(a)) return /\bown\b/i.test(question) && !/\brent/i.test(question) ? "rent" : "own";
+    if (/^\s*(yes|yeah|yep|s[ií])\b/.test(a)) return /\bown\b/i.test(question) && !/\brent/i.test(question) ? "own" : "rent";
+  }
+  return undefined;
 }
