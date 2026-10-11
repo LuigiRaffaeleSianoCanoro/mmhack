@@ -23,9 +23,13 @@ export function FixitSessions() {
   const [collapsed, setCollapsed] = useState(false);
   const [ready, setReady] = useState(false);
   useEffect(() => {
-    try { setSessions(JSON.parse(localStorage.getItem(KEY) ?? "[]")); } catch {}
-    setCurrent(newId());
-    setReady(true);
+    // Hydrate from localStorage after mount (client-only); scheduled to avoid a synchronous setState in the effect.
+    const t = setTimeout(() => {
+      try { setSessions(JSON.parse(localStorage.getItem(KEY) ?? "[]")); } catch {}
+      setCurrent(newId());
+      setReady(true);
+    }, 0);
+    return () => clearTimeout(t);
   }, []);
   const persist = (s: Session[]) => {
     setSessions(s);
