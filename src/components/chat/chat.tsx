@@ -13,6 +13,7 @@ import { DeliverCard } from "./deliver-card";
 import { IllustrationCard } from "./illustration-card";
 import { EmailCard, loadSent, useSent } from "./email-card";
 import { CtaCard } from "./cta-card";
+import { EvacCard } from "./evac-card";
 import { useAuth } from "@/components/fixit/auth";
 import { Markdown } from "./markdown";
 import { Composer } from "./composer";
@@ -93,7 +94,7 @@ export function Chat({ slug, profileUid, sessionId, initialMessages, onMessages,
       <div className="flex min-h-0 flex-1">
         <main className="flex min-w-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 overflow-y-auto">
-            <div className="mx-auto flex min-h-full max-w-2xl flex-col gap-5 bg-background/88 px-4 py-6 shadow-[0_0_60px_30px_oklch(0.125_0.005_300/0.6)]">
+            <div className="mx-auto flex min-h-full max-w-2xl flex-col gap-5 bg-background/80 sm:bg-background/88 px-4 py-6 shadow-[0_0_60px_30px_oklch(0.125_0.005_300/0.6)]">
               {messages.length === 0 && (
                 <div className="flex flex-col gap-6 pt-[8vh]">
                   <Mascot state="idle" size={112} className="-ml-3" />
@@ -136,6 +137,9 @@ export function Chat({ slug, profileUid, sessionId, initialMessages, onMessages,
                 >
                   {m.role === "assistant" && <Mascot state={mascotStateOf(m)} size={36} className="mt-0.5" />}
                   <div className={cn("flex min-w-0 flex-1 flex-col gap-2", m.role === "user" && "items-end")}>
+                  {m.role === "assistant" && m.parts.some((p) => p.type === "data-trace" && p.data.id === "safety") && (
+                    <EvacCard gas={m.parts.some((p) => p.type === "text" && /gas leak/i.test(p.text))} />
+                  )}
                   {m.parts.map((p, i) => {
                     if (p.type === "text" && m.role === "assistant")
                       {
