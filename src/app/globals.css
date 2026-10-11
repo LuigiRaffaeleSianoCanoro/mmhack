@@ -197,16 +197,21 @@
 .ribbed-glass-h::before { background-image: repeating-linear-gradient(0deg, var(--rib-light) 0, transparent calc(var(--rib-width) * 0.35), var(--rib-dark) calc(var(--rib-width) * 0.85), var(--rib-light) var(--rib-width)); }
 
 
-/* Brick wall backdrop (FixIt). Dark, desaturated, vignetted; content sits on near-opaque panels. */
+/* Brick wall backdrop (FixIt). Dark wall, broken corner (exposed pipe) bottom-right kept visible;
+   overlay is darkest under the chat column, lightest at the broken corner. Static image: reduced-motion safe. */
 .brick-bg {
   position: fixed; inset: 0; z-index: -1; pointer-events: none;
   background:
-    radial-gradient(120% 90% at 40% 35%, oklch(0.125 0.005 300 / 55%) 0%, oklch(0.125 0.005 300 / 80%) 60%, oklch(0.1 0.005 300 / 96%) 100%),
-    image-set(url("/bg/brick-960.webp") 1x, url("/bg/brick-1600.webp") 2x) right bottom / cover no-repeat,
+    radial-gradient(90% 70% at 85% 72%, oklch(0.125 0.005 300 / 0%) 0%, oklch(0.125 0.005 300 / 0%) 35%, oklch(0.125 0.005 300 / 55%) 100%),
+    linear-gradient(oklch(0.125 0.005 300 / 25%), oklch(0.125 0.005 300 / 25%)),
+    image-set(url("/bg/brick-960.webp") 1x, url("/bg/brick-1600.webp") 2x) 88% 70% / cover no-repeat,
     var(--background);
 }
 @media (min-width: 1024px) {
   .brick-bg { background:
-    radial-gradient(120% 90% at 40% 35%, oklch(0.125 0.005 300 / 50%) 0%, oklch(0.125 0.005 300 / 75%) 60%, oklch(0.1 0.005 300 / 95%) 100%),
+    radial-gradient(70% 70% at 88% 82%, oklch(0.125 0.005 300 / 0%) 0%, oklch(0.125 0.005 300 / 0%) 30%, oklch(0.125 0.005 300 / 60%) 100%),
     url("/bg/brick-1600.webp") right bottom / cover no-repeat, var(--background); }
 }
+
+@keyframes evac-pulse { 50% { transform: scale(1.06); filter: drop-shadow(0 0 14px #ff5d5d); } }
+@media (prefers-reduced-motion: reduce) { .evac * { animation: none !important; } }
