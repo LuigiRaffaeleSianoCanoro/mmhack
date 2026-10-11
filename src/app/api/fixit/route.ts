@@ -3,7 +3,9 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { estimateCost } from "@/lib/router";
 import { jevEnabled, jevTriage, JEV_MODEL } from "@/lib/jev";
 import type { ApprovalRequest, CtaAction, FixitCtx, MMMessage, TraceStep } from "@/lib/trace";
-import { claimExecution, createJob, finish as finishJob, releaseClaim, getJob, sealJob, STORE_KIND, STORE_LABEL, transition, type FixitJob } from "@/lib/jobs/store";
+import { audit as auditJob, claimExecution, createJob, finish as finishJob, releaseClaim, getJob, sealJob, STORE_KIND, STORE_LABEL, transition, type FixitJob } from "@/lib/jobs/store";
+import { currentUser } from "@/lib/user";
+import { EMAIL_OK, gmailEnabled, gmailStatus, sendOnce } from "@/lib/gmail-send";
 import { readSession, sessionHeader } from "@/lib/jobs/session";
 import { actor } from "@/lib/jobs/workflow";
 import { IMAGE_MODEL, normalizeCategory, type IllustrationRequest } from "@/lib/illustration";
@@ -115,13 +117,18 @@ export async function POST(req: Request) {
         try {
           // AWS-55: the approved artifact is the exact outbound payload (recipient pinned server-side), not free text.
           const outbound = buildOutbound(prompt, String(why.category ?? "repair"), why.hazard === true, pr ? { address, landlordName: pr.landlordName, landlordEmail: pr.landlordEmail, phone: pr.phone, notes: pr.notes } : {});
+          // AWS-71: decide Gmail delivery intent now and bind it to the audited job, so the approve click
+          // only sends when the card the human saw said it would.
+          const u = outbound.mode !== "send" && EMAIL_OK.test(outbound.to) ? await currentUser().catch(() => null) : null;
+          const gm = u && gmailEnabled() ? !!(await gmailStatus(u.id).catch(() => null))?.connected : false;
           const job = createJob(session.key, actor.system(), canonical(outbound));
           transition(job, "triage", actor.agent(ctx?.triage ? "gpt-5-mini" : "rules"), "triage classified", why);
           transition(job, "diagnosis", actor.code("hazard-rules"), "hazard rules evaluated", { keywordHazard: HAZARD.test(text) });
-          transition(job, "awaiting_approval", actor.code("approval-gate"), "human approval required", { draftHash: job.draftHash });
+          transition(job, "awaiting_approval", actor.code("approval-gate"), "human approval required", { draftHash: job.draftHash, gmailIntent: gm, gmailUser: gm && u ? u.id : "" });
           const pv = preview(job.id, outbound);
           const send = outbound.mode === "send";
-          return { ...base, action: send ? "send to landlord" : base.action, reason: send ? `Approve to send this email to ${outbound.to} via Swytchcode. It is sent once.` : `${reason} You'll get a ready-to-send request.`, jobId: job.id, draftHash: job.draftHash, jobToken: sealJob(job), store: STORE_KIND, storeLabel: STORE_LABEL, outbound: pv };
+          // AWS-71: tell signed-in Gmail users up front that approving sends it (the click is the consent).
+          return { ...base, action: send || gm ? "send to landlord" : base.action, reason: send ? `Approve to send this email to ${outbound.to} via Swytchcode. It is sent once.` : gm ? `Approve to send this email from your Gmail to ${outbound.to}. It is sent once.` : `${reason} You'll get a ready-to-send request.`, jobId: job.id, draftHash: job.draftHash, jobToken: sealJob(job), store: STORE_KIND, storeLabel: STORE_LABEL, outbound: pv };
         } catch (e) {
           console.error("[fixit] job store unavailable:", (e as Error).message);
           return base;
@@ -203,8 +210,51 @@ export async function POST(req: Request) {
           put({ id: "gate", task: "Execution claim", model: STORE_LABEL, provider: "router", why: claim.ok ? `Human approval matches draft hash; single claim ${claim.claimId.slice(0, 8)}.` : `Denied: ${claim.reason}. Audited.`, status: claim.ok ? "done" : "error" });
           let outbound: Outbound | null = null;
           try { const d = job?.draft.startsWith("{") ? (JSON.parse(job.draft) as Outbound) : null; outbound = d && (d.mode === "send" || d.mode === "export") && typeof d.body === "string" ? d : null; } catch {}
-          const report = (o: Outbound, r: ExecRecord) => {
+          const report = async (o: Outbound, r: ExecRecord, allowSend = false) => {
             put({ id: "outbound", task: "Governed outbound (Swytchcode)", model: o.tool, provider: "router", why: `${r.status}: ${r.detail} · record ${r.idempotencyKey.slice(0, 10)}`, status: r.status === "sent" || r.status === "not_sent_export" || r.status === "in_flight" ? "done" : "error" });
+            // AWS-71: signed-in + Gmail connected + a real landlord address in the approved payload -> the approve click sends it.
+            // Recipient/subject/body are exactly the hash-bound approved outbound; only the first (claimed) execution may send.
+            if (r.status === "not_sent_export") {
+              const user = await currentUser().catch(() => null);
+              const realTo = EMAIL_OK.test(o.to);
+              const st = user && gmailEnabled() ? await gmailStatus(user.id).catch(() => null) : null;
+              const intent = job?.audit.find((e) => e.details && (e.details as { gmailIntent?: boolean }).gmailIntent === true);
+              const boundUser = intent ? String((intent.details as { gmailUser?: string }).gmailUser ?? "") : "";
+              const already = job?.audit.some((e) => e.action.startsWith("gmail send"));
+              if (user && allowSend && realTo && st?.connected && intent && boundUser === user.id && !already) {
+                auditJob(getJob(job!.id) ?? job!, actor.code("gmail"), "gmail send started", true, { to: o.to });
+                const t = performance.now();
+                const res = await sendOnce(user.id, job!.id, { to: o.to, subject: o.subject, body: o.body });
+                put({ id: "gmail", task: "Send from your Gmail", model: "GMAIL_SEND_EMAIL", provider: "router", why: res.ok ? `Sent once from your Gmail (key ${job!.id.slice(0, 8)}).` : `Not sent: ${res.error}`, status: res.ok ? "done" : "error", latencyMs: Math.round(performance.now() - t) });
+                if (res.ok) {
+                  auditJob(getJob(job!.id) ?? job!, actor.code("gmail"), "gmail send done", true, { to: res.rec.to, messageId: res.rec.id ?? "" });
+                  const when = new Date(res.rec.at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Los_Angeles" });
+                  say("out", `**Sent ✓** to ${res.rec.to} at ${when} PT from your Gmail.${res.rec.id ? ` Message id \`${res.rec.id}\`.` : ""} It was sent once.`);
+                  writer.write({ type: "data-email", id: "email", data: { subject: o.subject, body: o.body, sendKey: job!.id, to: o.to, sent: res.rec } });
+                  if (ctx) save({ ...ctx, stage: "done", pending: [], approval: "approved", delivery: "sent", draft: { subject: o.subject, body: o.body, to: o.to } });
+                  return;
+                }
+                if (res.status === 504) {
+                  say("out", `**We couldn't confirm delivery.** ${res.error} Check your Gmail Sent folder before sending again; we won't resend automatically.`);
+                  if (ctx) save({ ...ctx, stage: "done", pending: [], approval: "approved", delivery: "unknown", draft: { subject: o.subject, body: o.body, to: o.to } });
+                  return;
+                }
+                say("out", `**Not sent.** ${res.error} Nothing went out; you can retry from the card below.`);
+                writer.write({ type: "data-email", id: "email", data: { subject: o.subject, body: o.body, sendKey: job!.id, to: o.to } });
+                if (ctx) save({ ...ctx, stage: "done", pending: [], approval: "approved", delivery: "failed", draft: { subject: o.subject, body: o.body, to: o.to } });
+                return;
+              }
+              if (user) {
+                say("out", st?.connected && realTo
+                  ? `**Approved.** Press **Send from my Gmail** below to send it to ${o.to}. It goes out once.`
+                  : st?.connected
+                  ? `**Approved.** Add your landlord's email below and press Send. It goes out once from your Gmail.`
+                  : `**Approved.** Connect Gmail and it sends right away to ${realTo ? o.to : "your landlord"}. Nothing goes out before that.\n\n**Subject:** ${o.subject}`);
+                writer.write({ type: "data-email", id: "email", data: { subject: o.subject, body: o.body, sendKey: job!.id, to: realTo ? o.to : undefined } });
+                if (ctx) save({ ...ctx, stage: "done", pending: [], approval: "approved", delivery: "draft", draft: { subject: o.subject, body: o.body, to: realTo ? o.to : undefined } });
+                return;
+              }
+            }
             say("out", r.status === "sent" ? `Sent to your landlord at ${o.to}.`
               : r.status === "unknown" ? "We couldn't confirm delivery yet. We won't resend automatically, so check before sending again."
               : r.status === "in_flight" ? "Already approved; it's being sent once. Nothing will be sent twice."
@@ -212,7 +262,7 @@ export async function POST(req: Request) {
               : "**Not sent.** Delivery isn't available right now, and nothing was sent.");
             if (ctx) save({ ...ctx, stage: "done", pending: [], approval: "approved", delivery: r.status === "sent" ? "sent" : r.status === "not_sent_export" ? "draft" : r.status === "failed" ? "failed" : "unknown", draft: { subject: o.subject, body: o.body, to: o.mode === "send" ? o.to : undefined } });
             if (r.status === "not_sent_export") {
-              writer.write({ type: "data-email", id: "email", data: { subject: o.subject, body: o.body } });
+              writer.write({ type: "data-email", id: "email", data: { subject: o.subject, body: o.body, sendKey: job?.id } });
               // AWS-59: offer Base44 Landlord Inbox delivery only when it is actually configured (no dead card otherwise).
               if (base44Configured()) {
                 const urgency = ["low", "medium", "high", "emergency"].includes(ctx?.triage.urgency ?? "") ? ctx!.triage.urgency : o.subject.startsWith("Urgent") ? "high" : "medium";
@@ -222,13 +272,13 @@ export async function POST(req: Request) {
           };
           if (outbound && job && !claim.ok && claim.reason === "already claimed") {
             const existing = lookup(job.id, outbound);
-            if (existing) report(outbound, existing);
+            if (existing) await report(outbound, existing);
             else say("dup", "Already approved; the single execution is in progress. Nothing will run twice.");
             finish();
             return;
           }
           if (outbound && job && claim.ok) {
-            report(outbound, await execute(job, outbound, claim.claimId));
+            await report(outbound, await execute(job, outbound, claim.claimId), true);
             const j = getJob(job.id) ?? job;
             writer.write({ type: "data-job", id: "job", data: { jobId: j.id, jobToken: sealJob(j) } });
             finish();

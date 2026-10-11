@@ -234,7 +234,7 @@ export function Chat({ slug, profileUid, sessionId, initialMessages, onMessages,
                         />
                       );
                     if (p.type === "data-email")
-                      return <EmailCard key={i} sendKey={m.id} defaultTo={profileUid ? loadProfile(profileUid)?.landlordEmail : undefined} subject={p.data.subject} draft={p.data.body ?? m.parts.map((x) => (x.type === "text" ? x.text : "")).join("\n").split(DETAILS)[0]} />;
+                      return <EmailCard key={i} sendKey={m.id} jobKey={p.data.sendKey} sentRec={p.data.sent} defaultTo={p.data.to ?? (profileUid ? loadProfile(profileUid)?.landlordEmail : undefined)} subject={p.data.subject} draft={p.data.body ?? m.parts.map((x) => (x.type === "text" ? x.text : "")).join("\n").split(DETAILS)[0]} />;
                     if (p.type === "data-chips")
                       return m.id === messages.at(-1)?.id && !busy ? (
                         <div key={i} className="flex flex-wrap gap-2">

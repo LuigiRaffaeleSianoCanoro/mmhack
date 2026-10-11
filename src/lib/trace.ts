@@ -58,5 +58,5 @@ export type DeliveryReady = { id: string; title: string; urgency: string; catego
 
 export type MMMessage = UIMessage<
   { approval?: boolean },
-  { trace: TraceStep; approval: ApprovalRequest; job: { jobId: string; jobToken?: string }; chips: { options: string[] }; ctx: FixitCtx; email: { subject: string; body?: string }; illustration: IllustrationRequest; delivery: DeliveryReady; cta: Cta }
+  { trace: TraceStep; approval: ApprovalRequest; job: { jobId: string; jobToken?: string }; chips: { options: string[] }; ctx: FixitCtx; email: { subject: string; body?: string; sendKey?: string; to?: string; sent?: { at: number; to: string; id?: string } }; illustration: IllustrationRequest; delivery: DeliveryReady; cta: Cta }
 >;
