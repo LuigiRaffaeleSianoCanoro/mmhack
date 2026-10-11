@@ -141,7 +141,7 @@ export async function POST(req: Request) {
         const vis: TraceStep = { id: "vision", task: "Inspect the photo", model: "gpt-5", provider: "neon-gateway", why: "Photo attached: strong vision model reads fixture, damage, likely failed part.", status: "running" };
         const t0 = performance.now();
         const visionP = images.length
-          ? (put(vis), generateText({ model: gateway.chat("gpt-5"), providerOptions: { "neon-gateway": { reasoningEffort: "low" } }, messages: [{ role: "user", content: [{ type: "text", text: "Describe the home-repair issue in this photo in 3 short bullets: fixture type, visible problem, likely failed part. No advice." }, ...images.map((url) => ({ type: "image" as const, image: url }))] }] }))
+          ? (put(vis), generateText({ model: gateway.chat("gpt-5"), providerOptions: { "neon-gateway": { reasoningEffort: "low" } }, messages: [{ role: "user", content: [{ type: "text", text: "Describe the home-repair issue in this photo in 3 short bullets: fixture type, visible problem, likely failed part. No advice. Then a final line exactly \"HAZARD: yes\" or \"HAZARD: no\" (yes if the photo shows a gas leak, sparking, exposed or damaged wiring, scorched or melted outlets or switches, smoke or fire, water on electrical equipment, active flooding or sewage; a normal appliance or a drip is no)." }, ...images.map((url) => ({ type: "image" as const, image: url }))] }] }))
           : null;
         visionP?.catch(() => {});
         let triage: Triage & { lang?: string } = { category: "general", urgency: "medium", hazard: false, summary: text };
@@ -178,10 +178,14 @@ export async function POST(req: Request) {
         if (visionP) {
           try {
             const r = await visionP;
-            observed = r.text;
+            const verdict = r.text.match(/HAZARD\W*(yes|no)/i)?.[1]?.toLowerCase();
+            // Missing verdict: fall back to strong hazard keywords rather than assuming safe.
+            const visHazard = verdict ? verdict === "yes" : /\b(spark\w*|exposed wir\w*|scorch\w*|melt\w*|smoke|fire|gas leak|sewage)\b/i.test(r.text);
+            observed = r.text.replace(/^.*HAZARD\W*(yes|no).*$/gim, "").trim();
             done(vis, t0, r.usage);
             // Post-vision hazard stop: the photo itself can reveal a hazard the text did not mention.
-            if (HAZARD.test(observed)) return safetyStop(/gas/i.test(observed) ? "gas" : /spark|wire|shock/i.test(observed) ? "electrical" : triage.category || "hazard");
+            // Uses the model's explicit verdict, not keywords, so "gas stove" or "no smoke" do not false-stop the demo.
+            if (visHazard) return safetyStop(/gas/i.test(observed) ? "gas" : /spark|wire|shock/i.test(observed) ? "electrical" : triage.category || "hazard");
           } catch (e) {
             fail(vis, t0, e);
           }

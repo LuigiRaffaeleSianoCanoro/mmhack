@@ -7,7 +7,9 @@ import { TypeSafeClient, choice, noul } from "@typesafe-ai/sdk";
  * Any error, timeout, malformed or low-confidence answer throws, and the caller falls back to gpt-5-mini.
  */
 export const JEV_MODEL = process.env.TYPESAFE_MODEL ?? "jev-latest";
-export const JEV_TIMEOUT_MS = Number(process.env.TYPESAFE_TIMEOUT_MS ?? 2500);
+// Clamped to 500-5000 ms so a slow provider always leaves budget for the gpt-5-mini fallback.
+const rawTimeout = Number(process.env.TYPESAFE_TIMEOUT_MS ?? 2500);
+export const JEV_TIMEOUT_MS = Number.isFinite(rawTimeout) ? Math.min(5000, Math.max(500, rawTimeout)) : 2500;
 export const JEV_MIN_CONFIDENCE = 0.6;
 /** Conservative: a modest probability of hazard is treated as a hazard. */
 export const JEV_HAZARD_THRESHOLD = 0.3;
