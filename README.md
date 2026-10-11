@@ -53,6 +53,10 @@ The emergency flow also appears in the mobile experience.
 
 <img src="docs/readme/12-mobile-gas.jpg" width="320" alt="Mobile FixIt screen showing a gas safety stop">
 
+### Renter or owner? The right next step
+
+FixIt tracks tenure (rent vs own) from your wizard answer or your profile and keeps it in the case state (PR #35). Renters get the landlord request card. Owners never see a landlord card: on a hazard they get the safety stop plus emergency/utility guidance, and the recommended-pros card is the next step.
+
 ### Your draft. Your approval.
 
 Review the landlord request on an approval card. Approval is tied to the exact draft and session; editing the draft invalidates that approval.
@@ -106,14 +110,14 @@ graph TD
     Browser["Browser: Next.js React chat UI"] --> Routes["Vercel route handlers<br/>/api/fixit<br/>/api/fixit/illustrate<br/>/api/jobs/[id]/decide<br/>/api/gmail<br/>/api/inbox<br/>/api/pros<br/>/api/auth"]
 
     Routes --> Neon["Neon AI Gateway"]
-    Neon --> Mini["gpt-5-mini<br/>Triage, small turns, cross-check"]
+    Neon --> Mini["gpt-5-mini<br/>Triage fallback, small turns, cross-check"]
     Neon --> GPT5["gpt-5<br/>Vision and plan fallback"]
     Neon --> Sonnet["claude-sonnet-5<br/>Plan and landlord draft"]
     Neon --> Astra["gpt-6-astra<br/>Optional repair illustration"]
 
-    Routes -.-> TypeSafe["TypeSafe SDK<br/>Optional Jev triage, off by default"]
+    Routes --> TypeSafe["TypeSafe SDK / Jev primary triage"]
     TypeSafe --> Jev["jev-latest"]
-    TypeSafe -.-> MiniFallback["On failure: gpt-5-mini via Neon"]
+    TypeSafe -.-> MiniFallback["Unsure, error or timeout over 2.5s: gpt-5-mini via Neon"]
     MiniFallback --> Neon
 
     Routes --> Jobs["Job workflow and audit<br/>Anbaric State / Transition / Actor contracts"]
@@ -125,7 +129,7 @@ graph TD
     Approval --> Base44["Base44 Landlord Inbox<br/>offered only when configured"]
 ```
 
-Neon routes the default model pipeline, including image generation; optional raw Jev uses the TypeSafe SDK, is off by default, and has not been benchmarked. Anbaric contracts model the workflow and audit trail, but demo persistence is local JSON in `/tmp`, not durable cloud storage. Composio Gmail is the live email path for connected, signed-in users; guests receive drafts, hosted Swytchcode remains preview/export-only, and the Base44 inbox card is offered only when Base44 is configured, and live production delivery is not verified.
+Neon routes the default model pipeline, including image generation; triage runs first on Jev through the TypeSafe SDK, falling back to gpt-5-mini via Neon when Jev is unsure, errors, or takes longer than 2.5s. Anbaric contracts model the workflow and audit trail, but demo persistence is local JSON in `/tmp`, not durable cloud storage. Composio Gmail is the live email path for connected, signed-in users; guests receive drafts, hosted Swytchcode remains preview/export-only, and the Base44 inbox card is offered only when Base44 is configured, and live production delivery is not verified.
 
 ### Request flow
 
@@ -199,13 +203,13 @@ The source of truth is [`src/app/api/fixit/route.ts`](src/app/api/fixit/route.ts
 
 | Step | Model | Bake-off result (quality · median latency · $/call) | Why this model |
 | --- | --- | --- | --- |
-| Triage | `gpt-5-mini` | 4/5 correct · 1.7s · $0.00007 | Caught every gas/electrical stop in the small test set at roughly 1/7 of Sonnet’s cost. |
+| Triage (primary) | Jev (`jev-latest`, served as `jev-1.13.0`) via TypeSafe SDK → fallback `gpt-5-mini` | Production bench, Oct 11: 14 cases × 3 runs. Hazards caught 24/24 (same as gpt-5-mini) · median 128 ms vs 962 ms for gpt-5-mini · cost not reported | Same hazard recall at a fraction of the latency, so the safety verdict arrives almost instantly. Falls back to `gpt-5-mini` when Jev is unsure, errors, or exceeds 2.5s. Small sample, and the confidence thresholds were tuned on the same set. |
+| Triage (fallback) | `gpt-5-mini` | Earlier bake-off: 4/5 correct · 1.7s · $0.00007 | Caught every gas/electrical stop in the small test set at roughly 1/7 of Sonnet’s cost. |
 | Vision | `gpt-5` (`reasoningEffort: low`) | 8.0/10 · 3.6s · $0.0025 | About 96% of Opus’s score at 1/5 the cost and 2× faster. Its `HAZARD: yes/no` output also gates the plan. |
 | Plan + landlord draft | `claude-sonnet-5`; automatic `gpt-5` retry | **Tested `sonnet-5-5`:** 8.7/10 · 5.7s · $0.0061 | About 96% of `gpt-6-astra`’s score at 1/3 the cost and 1.7× faster. The gateway serves `claude-sonnet-5`, **not the benchmarked `5-5` variant**. Planner timeout: 45s; retry: 90s, traced as `plan-fallback`. |
 | Cross-check | `gpt-5-mini` | 3/3 planted errors caught · 1.9s · $0.0003 | A low-cost check from a different provider family than the primary planner. |
 | Small conversational turns | `gpt-5-mini` | Not benchmarked separately | Handles confirmation, reply understanding, intent routing, and quick replies. |
 | Optional repair illustration | `gpt-6-astra` | 10/10 · 24.9s (n=1) · image charge **not measured** | Top score and fastest of the image-capable models (gpt-5-5-pro also scored 10, at 29.6s). Runs asynchronously; skipped for hazards or when there is no photo. |
-| Optional Jev triage | Raw `jev-latest` via TypeSafe SDK | **Raw Jev not benchmarked.** OpenRouter `typesafe/jev-router`: 4/5 · 1.7s · cost not reported | Opt-in alternative, **off by default**. Falls back to `gpt-5-mini` on timeout, error, malformed output, or a low-confidence non-hazard answer; a low-confidence answer with P(hazard) ≥ 0.3 is treated as a hazard instead. |
 
 ### Tested and cut
 
@@ -317,7 +321,7 @@ Thank you to the sponsors supporting FixIt—from the gateway behind its model c
 | Neon AI Gateway | Single gateway for every FixIt model call, image generation, and the bake-off | Live |
 | Anbaric | State/Transition/Actor workflow contracts, audit timeline, and a hosted mirror; persistence remains instance-local | Live (labelled fallback) |
 | Base44 | Landlord Inbox companion app and approved-draft delivery adapter; export-only when unconfigured, production delivery unverified | Live (labelled fallback) |
-| TypeSafe / Jev | Optional triage adapter with fallback to `gpt-5-mini`; raw Jev has not been benchmarked | Optional, off |
+| TypeSafe / Jev | Primary triage (Jev) with `gpt-5-mini` fallback | Live |
 | Composio | Gmail OAuth and approved email sends for connected, signed-in users; also sends magic-link emails through the owner’s Gmail | Live |
 | Swytchcode | Allow-listed landlord notification action with an exact-payload preview; no Swytchcode binary in the hosted demo | Preview-only in hosted demo |
 | Actual AI | ADRs that steer coding agents and back every “Why this model?” link; ADRs authored manually, the Actual CLI dry run stopped at sign-in | Partial |
@@ -436,7 +440,7 @@ The companion inbox gives approved landlord requests a destination separate from
 
 **What it does for us**
 
-Jev provides an optional triage path through TypeSafe’s raw `jev-latest` model. It is an alternative to test—not a required dependency for getting a safe next step.
+Jev is FixIt’s primary triage model: every new case is classified (trade, urgency, hazard) by TypeSafe’s `jev-latest` (served as `jev-1.13.0`), and the trace shows “Triaged by Jev”.
 
 **How it's implemented**
 
@@ -456,15 +460,15 @@ raw = await client.systemOne({
 
 The answer is validated with a zod schema before it is trusted.
 
-Enable it with `FIXIT_JEV_TRIAGE=1` and `TYPESAFE_API_KEY`. The timeout defaults to 2,500 ms and is clamped to 500–5,000 ms. Timeouts, errors, and malformed responses fall back to `gpt-5-mini`, as does a low-confidence non-hazard answer (confidence below `0.6` **and** P(hazard) below `0.3`). Any answer with P(hazard) ≥ `0.3` is treated as a hazard (conservative).
+Jev is on whenever `TYPESAFE_API_KEY` is set; `FIXIT_JEV_TRIAGE=0` is the kill switch. The timeout is 2.5s (clamped to 500–2,500 ms). P(hazard) ≥ `0.7` is a hazard (safety stop); P(hazard) < `0.3` is no hazard; anything in between is “unsure” and `gpt-5-mini` decides. Timeouts, errors, malformed responses, and low-confidence (< `0.6`) non-hazard answers also fall back to `gpt-5-mini`.
 
 See [`docs/jev-adapter.md`](docs/jev-adapter.md) and [`scripts/jev-bench.ts`](scripts/jev-bench.ts).
 
 **Why it's the best fit**
 
-The adapter lets us evaluate structured triage without making the core flow depend on an unbenchmarked model. Conservative hazard handling and a fallback keep that experiment bounded.
+In the Oct 11 production bench (14 cases × 3 runs) Jev caught all 24/24 hazard runs, the same as gpt-5-mini, with a median of 128 ms vs 962 ms. Calibrated probabilities make the hazard / unsure / safe bands explicit (real hazards scored 0.86–0.98 in the bench; benign washer/thermostat cases 0.30–0.42, which land in the unsure band and go to gpt-5-mini). Caveats: small sample, thresholds tuned on the same set, cost not reported by the API.
 
-**Status:** Optional and **off by default**. Raw Jev has **not been benchmarked**. The measured OpenRouter `typesafe/jev-router` result—4/5 correct, 1.7 s—is a different route, not evidence for raw Jev.
+**Status:** **Live** as primary triage since PR #37, with `gpt-5-mini` fallback on unsure, error, or timeout.
 
 ### Composio
 
@@ -663,10 +667,10 @@ Configure `.env.local` for the features you want to run. The two Neon AI Gateway
 | `SWYTCHCODE_TIMEOUT_MS` | Optional | Swytchcode execution timeout |
 | `LANDLORD_EMAIL` | For Swytchcode live sending | Pinned landlord recipient |
 | `FIXIT_FROM_EMAIL` | For Swytchcode live sending | Pinned sender address |
-| `FIXIT_JEV_TRIAGE` | For optional Jev triage | Enables the Jev adapter |
-| `TYPESAFE_API_KEY` | For optional Jev triage | TypeSafe authentication |
+| `FIXIT_JEV_TRIAGE` | Optional | Set to `0` to disable Jev (kill switch) |
+| `TYPESAFE_API_KEY` | For Jev triage | TypeSafe authentication; Jev is on whenever it is set |
 | `TYPESAFE_MODEL` | Optional | TypeSafe model selection |
-| `TYPESAFE_TIMEOUT_MS` | Optional | TypeSafe request timeout |
+| `TYPESAFE_TIMEOUT_MS` | Optional | Jev timeout (default and max 2500 ms) before falling back |
 | `ANBARIC_JOB_PERSISTENCE_TYPE` | Platform-injected | Controls the reported store label; does not make the instance store durable |
 
 **Integration boundaries:**
@@ -674,7 +678,7 @@ Configure `.env.local` for the features you want to run. The two Neon AI Gateway
 - Guests receive a draft only. Signed-in users who connect Gmail can send approved emails through Composio.
 - Swytchcode live sending also requires its binary. The hosted Vercel demo uses preview/export mode for this path.
 - Base44 delivery code exists, but live production delivery is not verified. Without credentials, it falls back to export-only.
-- Jev triage is optional and off by default.
+- Jev triage runs whenever `TYPESAFE_API_KEY` is set; without it (or with `FIXIT_JEV_TRIAGE=0`) gpt-5-mini triages.
 - Local JSON stores and in-memory rate limits are demo infrastructure, not durable cross-instance storage.
 
 During builds, `docs/adr/*.md` is copied to `public/adr/*.txt` for the in-app “Why this model?” links.
@@ -694,7 +698,7 @@ Start with the [ADR index](docs/adr/README.md) and [model-selection justificatio
 ## Roadmap
 
 - [ ] Move approvals, idempotency records, and rate limits to durable Postgres/KV storage.
-- [ ] Benchmark raw Jev through the TypeSafe SDK.
+- [x] Benchmark raw Jev through the TypeSafe SDK (Oct 11 production bench; now primary triage).
 - [ ] Install Prelint and verify ADR-aware PR checks.
 - [ ] Enable and verify Swytchcode live sending.
 - [ ] Verify Base44 live delivery.
